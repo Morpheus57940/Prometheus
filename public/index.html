@@ -169,7 +169,7 @@ input[type=number]{width:auto}
     <div><div class="ttitle">Prometheus</div><div class="tver">v6.4 · © 2026 Morpheus</div></div>
   </div>
   <div class="top-pills">
-    <div class="pill ok" id="pill-net" onclick="openNetModal()"><div class="dot d-live" id="dot-net"></div><span id="lbl-net">Détection…</span></div>
+    <div class="pill" id="pill-net" onclick="openNetModal()"><div class="dot d-off" id="dot-net"></div><span id="lbl-net">Sans ASIAIR</span></div>
     <div class="pill ok" id="pill-gps"><div class="dot d-ok"></div><span id="lbl-gps">GPS</span></div>
     <div class="pill" id="pill-bat"><div class="dot d-ok"></div><span id="lbl-bat">84%</span></div>
     <div class="pill acc" onclick="nav('liveview')"><div class="dot d-acc"></div><span>LIVE ▶</span></div>
@@ -184,7 +184,7 @@ input[type=number]{width:auto}
   <div style="padding:8px 11px 7px;border-bottom:1px solid var(--brd)">
     <div style="font-size:8px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">ASIAIR</div>
     <div id="sn-net-status" style="padding:6px 9px;border-radius:8px;border:1px solid rgba(29,158,117,.3);background:rgba(29,158,117,.08);cursor:pointer;font-size:11px" onclick="openNetModal()">
-      <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><div class="dot d-live" id="sn-dot"></div><span style="font-weight:700;color:var(--ok)" id="sn-mode">Détection…</span></div>
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><div class="dot d-off" id="sn-dot"></div><span style="font-weight:700;color:var(--dim)" id="sn-mode">Non connecté</span></div>
       <div style="font-size:10px;color:var(--dim)" id="sn-ip">Scan en cours…</div>
     </div>
   </div>
@@ -276,8 +276,9 @@ input[type=number]{width:auto}
       <div class="row"><div class="lbl">Caméra</div><div class="val">ASI2600MC · -15°C</div></div>
     </div>
     <div class="card">
-      <div class="ct">ASIAIR · <span id="d-net-mode" style="color:var(--acc)">Détection…</span></div>
-      <div class="row"><div class="sdot d-live" style="background:var(--ok);animation:blink 1.5s infinite"></div><div class="val" style="font-size:10px" id="d-ws-ip">Recherche…</div></div>
+      <div class="ct">ASIAIR · <span id="d-net-mode" style="color:var(--dim)">Non connecté</span></div>
+      <div class="row"><div class="sdot d-off" id="dash-asiair-dot" style="background:var(--dim)"></div><div class="val" style="font-size:10px" id="d-ws-ip">Non connecté</div></div>
+      <div style="margin-top:8px"><button class="btn btn-p" onclick="nav('net')" style="width:100%;min-height:auto;padding:8px;font-size:12px">📡 Connecter ASIAIR</button></div>
       <div class="row"><div class="lbl">RMS guidage</div><div class="val" style="color:var(--ok);font-weight:700" id="d-rms">0.48"</div></div>
       <div class="row"><div class="lbl">Pose</div><div class="val" id="d-curexp">180s · #47 · L-Pro</div></div>
       <div class="row"><div class="lbl">CCD temp.</div><div class="val" style="color:#4a9eff" id="d-ccd">-15.2°C</div></div>
@@ -1134,11 +1135,14 @@ const ASIAIR_PORT=4400;
 
 // Détection automatique au démarrage
 async function autoDetectNetwork(){
-  // L'UI est déjà disponible — cette fonction tourne en arrière-plan
+  // Affichage état initial neutre — pas de scan automatique
   U('lbl-net','Sans ASIAIR');
   U('sn-mode','Non connecté');
-  U('sn-ip','Cliquer 📡 pour connecter');
+  U('sn-ip','Aller dans Réseau pour connecter');
   pill('pill-net','');
+  // Pas de scan automatique au démarrage — déclenché manuellement
+  return;
+  // Code de détection ci-dessous conservé pour appel manuel :
 
   // 1. Tester accès internet → détermine Box vs Hotspot ASIAIR
   const hasInternet=await testInternet();
@@ -1536,7 +1540,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Détection réseau automatique après 1.5s (le temps que l'UI soit prête)
   setTimeout(autoDetectNetwork,4000); // Délai augmenté — UI dispo immédiatement
   // Re-détection toutes les 2 minutes (basculement automatique Box ↔ Hotspot)
-  setInterval(async()=>{const ok=await testInternet();const newMode=ok?'box':'asiair';if(newMode!==netMode){netMode=newMode;if(newMode==='asiair'){showOfflineBanner();updateNetUI('Réseau ASIAIR direct','192.168.1.1:'+ASIAIR_PORT,'asiair');}else{const banner=document.getElementById('meteo-offline-warn');if(banner)banner.style.display='none';fetchMeteo();if(detectedIP)updateNetUI('Box WiFi · ASIAIR',detectedIP+':'+ASIAIR_PORT,'box');}}},120000);
+  // Re-détection automatique désactivée — connexion manuelle via bouton Réseau
+  // setInterval auto désactivé pour ne pas scanner en permanence sans ASIAIR
 });
 
 // ══ GESTIONNAIRE ÉQUIPEMENTS PERSONNALISÉS ══
@@ -1620,7 +1625,7 @@ function showEquipForm(id){
   efEditId = id || null;
   const fw = document.getElementById('equip-form-wrap'); if(!fw) return;
   fw.style.display = 'block';
-  document.getElementById('ef-title').textContent = id ? 'Modifier l'équipement' : 'Ajouter un équipement';
+  document.getElementById('ef-title').textContent = id ? 'Modifier cet équipement' : 'Ajouter un équipement';
   document.getElementById('ef-del').style.display = id ? 'inline-block' : 'none';
   if(id){
     const e = myEquip.find(x=>x.id===id); if(!e) return;
@@ -1703,7 +1708,7 @@ function renderEquipList(){
       +'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+(e.brand?e.brand+' · ':'')+EQ_LABELS[e.cat]+(specs?' · '+specs:'')+'</div>'
       +(e.notes?'<div style="font-size:10px;color:var(--dim);font-style:italic;margin-top:2px">'+e.notes+'</div>':'')
       +'</div><span style="font-size:9px;padding:1px 7px;border-radius:3px;background:rgba(232,145,42,.15);color:#e8912a;flex-shrink:0">Perso.</span>'
-      +'<button onclick="showEquipForm(''+e.id+'')" style="padding:7px 12px;border:1px solid var(--brd);border-radius:7px;background:var(--bg2);color:var(--txt);font-size:11px;cursor:pointer;min-height:40px;-webkit-appearance:none;flex-shrink:0">Éditer</button>';
+      +'<button onclick="showEquipForm(\'' + e.id + '\')" style="padding:7px 12px;border:1px solid var(--brd);border-radius:7px;background:var(--bg2);color:var(--txt);font-size:11px;cursor:pointer;min-height:40px;-webkit-appearance:none;flex-shrink:0">Éditer</button>';
     el.appendChild(d);
   });
 }
