@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prometheus">
+<meta name="theme-color" content="#e8912a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Prometheus v6.3</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --acc:#e8912a;--ok:#1d9e75;--warn:#ef9f27;--err:#e24b4a;--info:#4a9eff;
+  --bg0:#0d1117;--bg1:#161b22;--bg2:#1c2333;--bg3:#080c12;
+  --brd:rgba(255,255,255,.1);--txt:#e6edf3;--dim:#7d8590;
+  --safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);
+  --f:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+}
+@media(prefers-color-scheme:light){
+  :root{--bg0:#f6f8fa;--bg1:#fff;--bg2:#f0f2f5;--bg3:#e4e8ed;--brd:rgba(0,0,0,.1);--txt:#1f2328;--dim:#656d76}
+}
+html,body{height:100%;overflow:hidden;font-family:var(--f);background:var(--bg0);color:var(--txt)}
+.app{display:flex;flex-direction:column;height:100%;overflow:hidden}
+
+/* ── TOPBAR ── */
+.topbar{padding:calc(var(--safe-top)+7px) 13px 7px;background:var(--bg1);border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:9px;flex-shrink:0;min-height:50px}
+.tlogo{display:flex;align-items:center;gap:7px;flex-shrink:0;cursor:pointer}
+.ttitle{font-size:14px;font-weight:700;letter-spacing:-.3px;color:var(--txt)}
+.tver{font-size:8px;color:var(--dim)}
+.top-pills{display:flex;gap:6px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.pill{display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;border:1px solid var(--brd);color:var(--dim);cursor:pointer;white-space:nowrap;transition:all .15s}
+.pill.ok{border-color:var(--ok);color:var(--ok)}
+.pill.live{border-color:var(--ok);color:var(--ok)}
+.pill.acc{border-color:var(--acc);color:var(--acc)}
+.pill.warn{border-color:var(--warn);color:var(--warn)}
+.pill.err{border-color:var(--err);color:var(--err)}
+.pill.scan{border-color:var(--info);color:var(--info);animation:scan-pulse 1s infinite}
+@keyframes scan-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.d-ok{background:var(--ok)}.d-live{background:var(--ok);animation:blink 1.5s infinite}
+.d-off{background:var(--dim)}.d-warn{background:var(--warn)}.d-acc{background:var(--acc);animation:blink 1.5s infinite}
+.d-scan{background:var(--info);animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ── LAYOUT ── */
+.main{display:flex;flex:1;overflow:hidden}
+@media(min-width:768px) and (orientation:landscape){
+  .sidenav{width:182px;background:var(--bg1);border-right:1px solid var(--brd);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+  .botnav{display:none}
+}
+@media not all and (min-width:768px){.sidenav{display:none}}
+@media(orientation:portrait){.sidenav{display:none}}
+.sidenav .grp{padding:5px 0 2px}
+.sidenav .glbl{font-size:8px;font-weight:700;color:var(--dim);padding:2px 11px;letter-spacing:.6px;text-transform:uppercase}
+.sidenav .ni{display:flex;align-items:center;gap:5px;padding:6px 11px;cursor:pointer;font-size:11px;color:var(--dim);border-left:2px solid transparent;transition:all .1s}
+.sidenav .ni:hover{background:var(--bg2);color:var(--txt)}
+.sidenav .ni.active{color:var(--acc);background:rgba(232,145,42,.08);border-left-color:var(--acc)}
+.badge{font-size:7px;font-weight:700;padding:1px 4px;border-radius:3px;margin-left:auto}
+.b-or{background:rgba(232,145,42,.2);color:#e8912a}
+.b-gr{background:rgba(29,158,117,.2);color:#1d9e75;animation:blink 2s infinite}
+.b-bl{background:rgba(74,158,255,.2);color:#4a9eff}
+
+/* ── CONTENT ── */
+.content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.panel{display:none;padding:13px}.panel.active{display:block}
+.pt{font-size:15px;font-weight:700;color:var(--txt);margin-bottom:2px;letter-spacing:-.3px}
+.ps{font-size:11px;color:var(--dim);margin-bottom:12px}
+.card{background:var(--bg1);border:1px solid var(--brd);border-radius:12px;padding:11px;margin-bottom:9px}
+.cardd{background:var(--bg3);border:1px solid var(--brd);border-radius:12px;padding:11px;margin-bottom:9px}
+.ct{font-size:9px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:9px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:9px}
+@media(max-width:520px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}}
+.bk{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600}
+.ok{background:rgba(29,158,117,.15);color:#1d9e75}.warn{background:rgba(239,159,39,.15);color:#ef9f27}
+.err{background:rgba(226,75,74,.15);color:#e24b4a}.or{background:rgba(232,145,42,.15);color:#e8912a}
+.bl{background:rgba(74,158,255,.15);color:#4a9eff}.off{background:var(--bg2);color:var(--dim)}
+.row{display:flex;align-items:center;gap:7px;margin:5px 0}
+.lbl{font-size:12px;color:var(--dim);min-width:95px}.val{font-size:12px;color:var(--txt)}
+.sep{height:1px;background:var(--brd);margin:9px 0}
+.btn{padding:10px 14px;border:1px solid var(--brd);border-radius:8px;font-size:13px;cursor:pointer;background:var(--bg2);color:var(--txt);transition:all .12s;min-height:44px;-webkit-appearance:none;font-family:var(--f)}
+.btn:active{transform:scale(.95)}.btn-p{background:var(--acc);color:#fff;border-color:var(--acc)}
+.btn-ok{background:var(--ok);color:#fff;border-color:var(--ok)}.btn-red{background:var(--err);color:#fff;border-color:var(--err)}
+input,select{padding:10px 12px;border:1px solid var(--brd);border-radius:8px;font-size:14px;background:var(--bg2);color:var(--txt);outline:none;min-height:44px;-webkit-appearance:none;width:100%;font-family:var(--f)}
+input:focus,select:focus{border-color:var(--acc)}
+input[type=range]{padding:0;height:36px;min-height:36px;accent-color:var(--acc)}
+input[type=number]{width:auto}
+.pb{height:4px;background:var(--bg2);border-radius:2px;overflow:hidden;margin:4px 0}
+.pf{height:100%;border-radius:2px;transition:width .5s}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.vbar{flex:1;height:5px;background:var(--bg2);border-radius:3px;overflow:hidden}
+.vfill{height:100%;border-radius:3px;transition:width .5s}
+.ms{background:var(--bg2);border-radius:8px;padding:8px 10px;text-align:center;min-width:62px;flex-shrink:0;border:1px solid var(--brd)}
+.ms.best{border-color:var(--acc);background:rgba(232,145,42,.08)}
+.res-box{background:rgba(232,145,42,.07);border:1px solid rgba(232,145,42,.2);border-radius:12px;padding:12px;margin-bottom:9px}
+.sess-bar{background:rgba(232,145,42,.07);border:1px solid rgba(232,145,42,.2);border-radius:10px;padding:10px 12px;margin-bottom:9px;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.ck-item{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--brd);min-height:52px}
+.ck-item:last-child{border-bottom:none}
+.eaf-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:8px 0}
+.eafb{min-height:52px;border:1px solid var(--brd);border-radius:8px;background:var(--bg2);color:var(--txt);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-appearance:none}
+.eafb:active{transform:scale(.92);border-color:var(--acc)}
+
+/* ── LIVE VIEW ── */
+.lv-wrap{position:relative;background:#000;border-radius:12px;overflow:hidden;cursor:pointer;border:1px solid var(--brd);margin-bottom:9px}
+.lv-wrap canvas{width:100%;display:block}
+.lv-ov{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.lv-top{position:absolute;top:0;left:0;right:0;padding:8px 10px;background:linear-gradient(rgba(0,0,0,.7),transparent);display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.lv-bot{position:absolute;bottom:0;left:0;right:0;padding:8px 10px;background:linear-gradient(transparent,rgba(0,0,0,.82));display:flex;gap:7px;align-items:flex-end;flex-wrap:wrap}
+.tag{font-size:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.5);padding:2px 8px;border-radius:4px;backdrop-filter:blur(4px)}
+.tag.live{background:rgba(226,75,74,.8);animation:blink 1.5s infinite}
+.tag.ok{background:rgba(29,158,117,.75)}
+.tag.bl{background:rgba(74,158,255,.7)}
+.tag.acc{background:rgba(232,145,42,.75)}
+.tap-fs-hint{position:absolute;bottom:40px;right:10px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);border-radius:12px;color:#fff;font-size:10px;padding:4px 10px;pointer-events:none;opacity:0;transition:opacity .3s}
+.lv-wrap:hover .tap-fs-hint{opacity:1}
+/* Fullscreen */
+.lv-fs{position:fixed;inset:0;background:#000;z-index:9999;display:none;flex-direction:column}
+.lv-fs.show{display:flex}
+.lv-fs-main{flex:1;position:relative;overflow:hidden}
+.lv-fs-main canvas{width:100%;height:100%;object-fit:contain;display:block}
+.lv-fs-hud-top,.lv-fs-hud-bot{position:absolute;left:0;right:0;padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lv-fs-hud-top{top:0;background:linear-gradient(rgba(0,0,0,.75),transparent)}
+.lv-fs-hud-bot{bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.85));align-items:flex-end}
+.lv-fs-ctrl{padding:9px 14px;background:rgba(0,0,0,.85);display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid rgba(255,255,255,.1);flex-shrink:0}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:9px}
+@media(max-width:520px){.stat-grid{grid-template-columns:1fr 1fr}}
+.sbox{background:var(--bg2);border-radius:8px;padding:8px 10px;text-align:center}
+.sval{font-size:17px;font-weight:700;line-height:1;color:var(--txt)}.slbl{font-size:9px;color:var(--dim);margin-top:3px}
+.hist-wrap{height:68px;background:#000;border-radius:8px;overflow:hidden;margin-bottom:7px}
+.guide-wrap{height:76px;background:#000;border-radius:8px;overflow:hidden;margin-bottom:7px}
+.focus-wrap{height:62px;background:#000;border-radius:8px;overflow:hidden;margin-bottom:7px}
+
+/* ── RÉSEAU ── */
+.net-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8888;display:none;align-items:center;justify-content:center}
+.net-modal.show{display:flex}
+.net-card{background:var(--bg1);border:1px solid var(--brd);border-radius:16px;padding:20px;width:min(92vw,440px);max-height:92vh;overflow-y:auto}
+
+/* Scan animation */
+.scan-grid{display:flex;flex-direction:column;gap:4px;margin:8px 0;font-family:'SF Mono',monospace;font-size:11px;max-height:160px;overflow-y:auto}
+.scan-row{display:flex;align-items:center;gap:8px;padding:4px 8px;border-radius:6px}
+.scan-row.found{background:rgba(29,158,117,.1);border:1px solid rgba(29,158,117,.2)}
+.scan-row.testing{background:rgba(74,158,255,.07)}
+.scan-row.fail{opacity:.4}
+
+/* Botnav */
+.botnav{display:flex;background:var(--bg1);border-top:1px solid var(--brd);padding-bottom:var(--safe-bot);flex-shrink:0;overflow-x:auto}
+.bni{flex:1;min-width:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px;cursor:pointer;gap:2px;color:var(--dim);font-size:9px;border-top:2px solid transparent;user-select:none;-webkit-user-select:none}
+.bni.active{color:var(--acc);border-top-color:var(--acc)}
+.bni-ico{font-size:16px;line-height:1}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--brd);border-radius:2px}
+.fcp{text-align:center;font-size:9px;color:var(--dim);padding:12px;border-top:1px solid var(--brd);margin-top:8px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tlogo" onclick="nav('dash')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M12 2C12 2 17 7.5 17 11C17 13.5 15.5 15 14 14.5C16 10 11.5 5.5 9.5 8.5C7.5 12 9.5 15.5 12 15.5C9.5 15.5 7 13.5 7 10.5C7 6.5 9.5 2 12 2Z" fill="#e8912a"/>
+      <path d="M12 13.5C12 13.5 14 16 14 18C14 20 13 21.5 12 21.5C11 21.5 10 20 10 18C10 16 12 13.5 12 13.5Z" fill="#ef9f27"/>
+    </svg>
+    <div><div class="ttitle">Prometheus</div><div class="tver">v6.4 · © 2026 Morpheus</div></div>
+  </div>
+  <div class="top-pills">
+    <div class="pill ok" id="pill-net" onclick="openNetModal()"><div class="dot d-live" id="dot-net"></div><span id="lbl-net">Détection…</span></div>
+    <div class="pill ok" id="pill-gps"><div class="dot d-ok"></div><span id="lbl-gps">GPS</span></div>
+    <div class="pill" id="pill-bat"><div class="dot d-ok"></div><span id="lbl-bat">84%</span></div>
+    <div class="pill acc" onclick="nav('liveview')"><div class="dot d-acc"></div><span>LIVE ▶</span></div>
+    <div class="pill ok" id="pill-rms"><div class="dot d-ok"></div><span id="lbl-rms">0.48"</span></div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- SIDENAV -->
+<div class="sidenav">
+  <div style="padding:8px 11px 7px;border-bottom:1px solid var(--brd)">
+    <div style="font-size:8px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">ASIAIR</div>
+    <div id="sn-net-status" style="padding:6px 9px;border-radius:8px;border:1px solid rgba(29,158,117,.3);background:rgba(29,158,117,.08);cursor:pointer;font-size:11px" onclick="openNetModal()">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><div class="dot d-live" id="sn-dot"></div><span style="font-weight:700;color:var(--ok)" id="sn-mode">Détection…</span></div>
+      <div style="font-size:10px;color:var(--dim)" id="sn-ip">Scan en cours…</div>
+    </div>
+  </div>
+  <div class="grp"><div class="glbl">Observation</div>
+    <div class="ni active" onclick="nav('dash',this)">◉ Tableau de bord</div>
+    <div class="ni" onclick="nav('liveview',this)">▶ Live View <span class="badge b-gr">LIVE</span></div>
+    <div class="ni" onclick="nav('meteo',this)">◌ Météo live <span class="badge b-gr">LIVE</span></div>
+    <div class="ni" onclick="nav('catalogue',this)">✦ Catalogue <span class="badge b-bl">110k</span></div>
+    <div class="ni" onclick="nav('planif',this)">◈ Planificateur</div>
+    <div class="ni" onclick="nav('ciel',this)">⊙ Carte du ciel</div>
+  </div>
+  <div class="grp"><div class="glbl">GPS & Navigation</div>
+    <div class="ni" onclick="nav('gps',this)">⊕ GPS iPad <span class="badge b-gr">LIVE</span></div>
+    <div class="ni" onclick="nav('boussole',this)">◎ Boussole iPad</div>
+    <div class="ni" onclick="nav('tableeq',this)">⊞ Table EQ <span class="badge b-or">6SE</span></div>
+  </div>
+  <div class="grp"><div class="glbl">Matériel</div>
+    <div class="ni" onclick="nav('myequip',this)">★ Mes équipements <span class="badge b-or">NEW</span></div>
+    <div class="ni" onclick="nav('optique',this)">⊛ Optique & correcteurs</div>
+    <div class="ni" onclick="nav('montures',this)">⚙ Montures</div>
+    <div class="ni" onclick="nav('eqp',this)">⊡ Tensions & batterie</div>
+    <div class="ni" onclick="nav('polaire',this)">⊕ Alignement polaire</div>
+    <div class="ni" onclick="nav('eaf',this)">⚙ EAF Manuel</div>
+    <div class="ni" onclick="nav('collim',this)">⊕ Collimation</div>
+    <div class="ni" onclick="nav('backfocus',this)">⊞ Back focus</div>
+  </div>
+  <div class="grp"><div class="glbl">Acquisition</div>
+    <div class="ni" onclick="nav('prise',this)">▶ Prise de vue</div>
+    <div class="ni" onclick="nav('dof',this)">▣ DOF & calibration</div>
+    <div class="ni" onclick="nav('sigma',this)">∑ 3-Sigma</div>
+  </div>
+  <div class="grp"><div class="glbl">Session</div>
+    <div class="ni" onclick="nav('checklist',this)">☑ Checklist auto</div>
+    <div class="ni" onclick="nav('updates',this)">↻ Mises à jour</div>
+  </div>
+  <div style="padding:6px 11px;border-top:1px solid var(--brd);font-size:8px;color:var(--dim);text-align:center;line-height:1.7;margin-top:auto">Prometheus v6.4<br>© 2026 Morpheus</div>
+</div>
+
+<div class="content">
+
+<!-- ══ TABLEAU DE BORD ══ -->
+<div class="panel active" id="panel-dash">
+  <div class="pt">Tableau de bord</div>
+  <div class="ps"><span id="dash-loc">Yutz, France · 49.36°N</span> · Session live</div>
+
+  <!-- Bannière réseau -->
+  <div id="net-banner" style="display:none;padding:9px 12px;border-radius:10px;margin-bottom:9px;font-size:11px;display:flex;align-items:center;gap:9px">
+  </div>
+
+  <!-- Session -->
+  <div class="sess-bar">
+    <div style="flex-shrink:0"><div style="font-size:9px;color:var(--acc);font-weight:700">Session</div><div style="font-size:14px;font-weight:700" id="sess-obj">M31 — Andromède</div></div>
+    <div style="flex-shrink:0"><div style="font-size:9px;color:var(--dim)">Poses</div><div style="font-size:16px;font-weight:700" id="sess-prog">47 / 120</div></div>
+    <div style="flex:1;min-width:80px"><div class="pb" style="height:6px"><div class="pf" id="sess-bar" style="width:39%;background:var(--acc)"></div></div><div style="font-size:9px;color:var(--dim);margin-top:2px" id="sess-rem">2h 19m · fin 02h14</div></div>
+    <button class="btn btn-p" onclick="nav('liveview')" style="flex-shrink:0;min-height:auto;padding:8px 12px;font-size:12px">▶ Live</button>
+  </div>
+
+  <!-- Live View miniature intégré (tap = plein écran) -->
+  <div class="lv-wrap" onclick="openFS()" style="height:auto">
+    <canvas id="dash-cv" width="640" height="196" style="max-height:220px;object-fit:contain"></canvas>
+    <canvas id="dash-ov" class="lv-ov" width="640" height="196"></canvas>
+    <div class="lv-top">
+      <span class="tag live" id="dlv-live">● LIVE</span>
+      <span class="tag" id="dlv-obj">M31 · 180s · #47</span>
+      <span class="tag ok" id="dlv-rms">RMS 0.48"</span>
+      <span class="tag bl" id="dlv-ccd">-15.2°C</span>
+    </div>
+    <div class="lv-bot">
+      <span class="tag ok" id="dlv-seq">47/120 · 39%</span>
+      <span class="tag" id="dlv-hfr">HFR 1.79</span>
+      <span class="tag acc" style="margin-left:auto">⤢ Plein écran</span>
+    </div>
+    <div class="tap-fs-hint">⤢ Tap pour plein écran</div>
+  </div>
+
+  <div class="g4">
+    <div class="card"><div class="ct">GPS</div><div style="font-size:13px;font-weight:700" id="d-gps">49.36°N</div><span class="bk ok">Fixé</span></div>
+    <div class="card"><div class="ct">Seeing</div><div style="font-size:18px;font-weight:700;color:var(--ok)">2.4"</div><span class="bk ok">Antoniadi II</span></div>
+    <div class="card"><div class="ct">Batterie</div><div style="font-size:18px;font-weight:700" id="d-bat">84%</div><div class="pb"><div class="pf" id="d-bat-b" style="width:84%;background:var(--ok)"></div></div></div>
+    <div class="card"><div class="ct">EAF</div><div style="font-size:13px;font-weight:700" id="d-eaf">28 450</div><span class="bk ok">HFR 1.79</span></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="ct">Optique</div>
+      <div class="row"><div class="lbl">Tube</div><div class="val" id="d-scope">NexStar 6SE</div></div>
+      <div class="row"><div class="lbl">Correcteur</div><div class="val" id="d-corr">Réducteur 0.63×</div></div>
+      <div class="row"><div class="lbl">Focale eff.</div><div class="val" style="color:var(--acc);font-weight:700" id="d-feff">945mm f/6.3</div></div>
+      <div class="row"><div class="lbl">Caméra</div><div class="val">ASI2600MC · -15°C</div></div>
+    </div>
+    <div class="card">
+      <div class="ct">ASIAIR · <span id="d-net-mode" style="color:var(--acc)">Détection…</span></div>
+      <div class="row"><div class="sdot d-live" style="background:var(--ok);animation:blink 1.5s infinite"></div><div class="val" style="font-size:10px" id="d-ws-ip">Recherche…</div></div>
+      <div class="row"><div class="lbl">RMS guidage</div><div class="val" style="color:var(--ok);font-weight:700" id="d-rms">0.48"</div></div>
+      <div class="row"><div class="lbl">Pose</div><div class="val" id="d-curexp">180s · #47 · L-Pro</div></div>
+      <div class="row"><div class="lbl">CCD temp.</div><div class="val" style="color:#4a9eff" id="d-ccd">-15.2°C</div></div>
+      <div class="row"><div class="lbl">Fin prévue</div><div class="val" style="color:var(--acc)" id="d-end">02h 14m</div></div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="card"><div class="ct">Météo</div><div style="font-size:14px;font-weight:700">✦ Bon ciel</div><div style="font-size:10px;color:var(--dim)">Seeing II · 82%</div></div>
+    <div class="card"><div class="ct">12V monture</div><div style="font-size:18px;font-weight:700">12.1 V</div><div class="pb"><div class="pf" style="width:88%;background:var(--ok)"></div></div></div>
+    <div class="card"><div class="ct">Lune</div><div style="font-size:18px;font-weight:700;color:var(--ok)">12%</div><div style="font-size:10px;color:var(--dim)">Gênance faible</div></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px"><div class="ct" style="margin:0">Checklist</div><button class="btn" style="min-height:auto;padding:5px 10px;font-size:11px" onclick="nav('checklist')">Tout voir</button></div>
+    <div id="ck-mini"></div>
+  </div>
+  <div class="fcp">Prometheus v6.4 · © 2026 Morpheus · Tous droits réservés</div>
+</div>
+
+<!-- ══ LIVE VIEW ══ -->
+<div class="panel" id="panel-liveview">
+  <div class="pt">Live View</div>
+  <div class="ps">Tap image → plein écran · Histogramme RVB · Guidage PHD2 · Temps réel</div>
+
+  <div class="lv-wrap" onclick="openFS()">
+    <canvas id="lv-cv" width="640" height="248"></canvas>
+    <canvas id="lv-ov" class="lv-ov" width="640" height="248"></canvas>
+    <div class="lv-top">
+      <span class="tag live" id="lv-status">● LIVE</span>
+      <span class="tag" id="lv-obj-tag">M31 · L-Pro · 180s · #47</span>
+      <span class="tag ok" id="lv-rms-tag">RMS 0.48"</span>
+      <span class="tag bl" id="lv-ccd-tag">-15.2°C</span>
+      <span class="tag" id="lv-hfr-tag">HFR 1.79</span>
+    </div>
+    <div class="lv-bot">
+      <span class="tag ok" id="lv-seq-tag">47/120 · 39%</span>
+      <span class="tag acc" style="margin-left:auto">⤢ Plein écran</span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:7px;margin-bottom:9px;flex-wrap:wrap">
+    <button class="btn btn-ok" id="lv-play" onclick="toggleLive()" style="flex:1">⏸ Pause</button>
+    <button class="btn" id="lv-grid-btn" onclick="toggleGrid()" style="flex:1">Grille ●</button>
+    <button class="btn" id="lv-str-btn" onclick="toggleStretch()" style="flex:1">Étirer ○</button>
+    <button class="btn btn-p" onclick="openFS()" style="flex:1">⤢ Plein écran</button>
+    <button class="btn btn-red" onclick="alert('Séquence stoppée sur l\'ASIAIR')" style="flex:1">⏹ Stop</button>
+  </div>
+
+  <div class="stat-grid">
+    <div class="sbox"><div class="sval" style="color:var(--ok)" id="sv-rms">0.48"</div><div class="slbl">RMS guidage</div></div>
+    <div class="sbox"><div class="sval" id="sv-med">12 450</div><div class="slbl">Médiane ADU</div></div>
+    <div class="sbox"><div class="sval" style="color:var(--ok)" id="sv-snr">18.4 dB</div><div class="slbl">SNR estimé</div></div>
+    <div class="sbox"><div class="sval" style="color:#4a9eff" id="sv-ccd">-15.2°C</div><div class="slbl">CCD temp.</div></div>
+  </div>
+
+  <div class="cardd">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div class="ct" style="margin:0;color:var(--dim)">Histogramme RVB live</div>
+      <div style="font-size:10px;font-weight:700;display:flex;gap:8px">
+        <span style="color:#4a9eff">R:<span id="h-r">—</span></span>
+        <span style="color:#1d9e75">G:<span id="h-g">—</span></span>
+        <span style="color:#e24b4a">B:<span id="h-b">—</span></span>
+      </div>
+    </div>
+    <div class="hist-wrap"><canvas id="hist-cv" width="600" height="68"></canvas></div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim);padding:0 2px"><span>0</span><span>16k</span><span>32k</span><span>48k</span><span>65k</span></div>
+  </div>
+
+  <div class="cardd">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div class="ct" style="margin:0;color:var(--dim)">Guidage PHD2 · 60 dernières secondes</div>
+      <div style="font-size:10px;font-weight:700;display:flex;gap:8px">
+        <span style="color:#4a9eff">RA <span id="g-ra">0.32"</span></span>
+        <span style="color:#e24b4a">Dec <span id="g-dec">0.35"</span></span>
+        <span style="color:#fff">RMS <span id="g-rms">0.48"</span></span>
+      </div>
+    </div>
+    <div class="guide-wrap"><canvas id="guide-cv" width="600" height="76"></canvas></div>
+  </div>
+
+  <div class="cardd">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div class="ct" style="margin:0;color:var(--dim)">Courbe HFR</div>
+      <div style="font-size:10px;font-weight:700;display:flex;gap:8px">
+        <span style="color:var(--ok)">HFR <span id="hfr-val">1.79</span></span>
+        <span style="color:var(--dim)">pos <span id="hfr-pos">28 450</span></span>
+      </div>
+    </div>
+    <div class="focus-wrap"><canvas id="focus-cv" width="600" height="62"></canvas></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="ct">Séquence</div>
+      <div style="text-align:center;padding:6px 0"><div style="font-size:28px;font-weight:700;color:var(--acc)" id="seq-pct">39%</div><div style="font-size:11px;color:var(--dim)" id="seq-count">47 / 120 poses</div></div>
+      <div class="pb" style="height:7px;margin:8px 0"><div class="pf" id="seq-bar" style="width:39%;background:var(--acc)"></div></div>
+      <div class="row"><div class="lbl">Restant</div><div class="val" style="color:var(--acc)" id="seq-rem">2h 19m</div></div>
+      <div class="row"><div class="lbl">Fin prévue</div><div class="val" id="seq-end">02h 14m</div></div>
+    </div>
+    <div class="card">
+      <div class="ct">Températures</div>
+      <div style="text-align:center;padding:6px 0"><div style="font-size:26px;font-weight:700;color:#4a9eff" id="t-ccd">-15.2°C</div><div style="font-size:10px;color:var(--dim)">ASI2600MC</div></div>
+      <div class="row"><div class="lbl">Air extérieur</div><div class="val" id="t-air">1.4°C</div></div>
+      <div class="row"><div class="lbl">Pt. rosée</div><div class="val">-4.8°C</div></div>
+      <div class="row"><div class="lbl">Risque rosée</div><div class="val" style="color:var(--ok)">Faible</div></div>
+    </div>
+  </div>
+  <div class="fcp">Prometheus v6.3 · Live View Nec plus ultra · © 2026 Morpheus</div>
+</div>
+
+<!-- ══ CONNEXION / RÉSEAU ══ -->
+<div class="panel" id="panel-net">
+  <div class="pt">Connexion ASIAIR</div>
+  <div class="ps">Détection automatique · Box WiFi ou réseau direct ASIAIR</div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+      <div class="ct" style="margin:0">Détection automatique du réseau</div>
+      <button class="btn btn-p" onclick="autoDetect()" style="min-height:auto;padding:7px 12px;font-size:11px" id="scan-btn">🔍 Scanner</button>
+    </div>
+
+    <!-- Résultat détection -->
+    <div id="net-detect-result" style="background:rgba(232,145,42,.06);border:1px solid rgba(232,145,42,.2);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--acc);margin-bottom:6px" id="net-result-title">Appuyer sur Scanner pour détecter l'ASIAIR</div>
+      <div style="font-size:11px;color:var(--dim)" id="net-result-desc">Prometheus va tester les adresses IP courantes sur votre réseau WiFi actuel.</div>
+    </div>
+
+    <!-- Log du scan -->
+    <div id="scan-log" style="display:none">
+      <div style="font-size:10px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Scan en cours…</div>
+      <div class="scan-grid" id="scan-rows"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct" style="margin-bottom:7px">Configuration manuelle</div>
+    <div class="row"><div class="lbl">IP ASIAIR</div><input type="text" id="manual-ip" value="192.168.1.100" placeholder="192.168.1.100" style="flex:1"></div>
+    <div class="row"><div class="lbl">Port</div><input type="number" id="manual-port" value="4400" style="width:90px"></div>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="btn btn-p" onclick="connectManual()" style="flex:1">Connecter</button>
+      <button class="btn" onclick="testPing()" style="flex:1">Tester</button>
+    </div>
+    <div id="ping-result" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
+  </div>
+
+  <div class="card">
+    <div class="ct" style="margin-bottom:7px">Les deux modes en pratique</div>
+    <div style="background:rgba(29,158,117,.06);border:1px solid rgba(29,158,117,.2);border-radius:9px;padding:10px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--ok);margin-bottom:5px">📡 Mode Station — Box WiFi (recommandé)</div>
+      <div style="font-size:11px;color:var(--txt);line-height:1.8">Dans l'app ASIAIR officielle → Réglages → WiFi → connecter l'ASIAIR à votre box.<br>
+      Ensuite iPad et ASIAIR sont sur le même réseau.<br>
+      <strong style="color:var(--ok)">→ Météo live, GPS, internet : tout fonctionne.</strong></div>
+      <div style="font-size:10px;color:var(--dim);margin-top:5px">Trouver l'IP : app ASIAIR → icône ⚙ → Réseau → IP affichée</div>
+    </div>
+    <div style="background:rgba(232,145,42,.06);border:1px solid rgba(232,145,42,.2);border-radius:9px;padding:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--acc);margin-bottom:5px">📶 Mode Hotspot — Réseau ASIAIR direct</div>
+      <div style="font-size:11px;color:var(--txt);line-height:1.8">iPad connecté à <code style="color:var(--acc)">ASIAIR_XXXXXX</code> · IP fixe <code style="color:var(--acc)">192.168.1.1</code><br>
+      Idéal en terrain sans WiFi disponible.<br>
+      <strong style="color:var(--warn)">→ Météo en cache · GPS iPad toujours actif.</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIQUE -->
+<div class="panel" id="panel-optique">
+  <div class="pt">Optique & correcteurs</div>
+  <div class="ps">60+ instruments · SW 70ED · Askar FRA/SQA · NexStar 6SE · correcteur 0.63×</div>
+  <div class="card">
+    <div class="ct" style="margin-bottom:6px">Tube / Lunette</div>
+    <select id="opt-scope" onchange="calcOpt()">
+      <optgroup label="⭐ Celestron NexStar SE">
+        <option value="1250|9.8|NexStar 4SE">NexStar 4SE · 127mm f/9.8 · 1250mm</option>
+        <option value="1500|10|NexStar 6SE" selected>NexStar 6SE · 150mm f/10 · 1500mm ★</option>
+        <option value="2032|10|NexStar 8SE">NexStar 8SE · 203mm f/10 · 2032mm</option>
+        <option value="2800|10|Celestron C11">Celestron C11 · 280mm f/10 · 2800mm</option>
+        <option value="2350|10|EdgeHD 9.25">EdgeHD 9.25" · 235mm f/10</option>
+        <option value="2032|10|Celestron C8">Celestron C8 · 203mm f/10</option>
+      </optgroup>
+      <optgroup label="Maksutov-Cassegrain">
+        <option value="1250|9.8|SW Mak 127">Sky-Watcher Mak 127 · 1250mm f/9.8</option>
+        <option value="1500|11.8|SW Mak 127 L">Sky-Watcher Mak 127 · 1500mm f/11.8</option>
+        <option value="2700|15|SW Mak 180">Sky-Watcher Mak 180 · 2700mm f/15</option>
+        <option value="1900|14.8|Meade ETX 125">Meade ETX 125 · 1900mm f/15</option>
+      </optgroup>
+      <optgroup label="⭐ Sky-Watcher Réfracteurs ED">
+        <option value="420|6|SW 70ED">Sky-Watcher 70ED · 70mm f/6 · 420mm</option>
+        <option value="480|6|SW ED80 f6">Sky-Watcher ED80 · 80mm f/6 · 480mm</option>
+        <option value="600|7.5|SW ED80">Sky-Watcher ED80 · 80mm f/7.5 · 600mm</option>
+        <option value="550|5.5|SW Esprit 100ED">Sky-Watcher Esprit 100ED · 100mm f/5.5</option>
+        <option value="840|7|SW Esprit 120ED">Sky-Watcher Esprit 120ED · 120mm f/7</option>
+        <option value="900|7|SW Esprit 150ED">Sky-Watcher Esprit 150ED · 150mm f/7</option>
+      </optgroup>
+      <optgroup label="⭐ Askar FRA Series">
+        <option value="220|4|Askar FRA400">Askar FRA400 · 55mm f/4 · 220mm</option>
+        <option value="360|5.6|Askar FRA600">Askar FRA600 · 60mm f/5.6 · 360mm</option>
+        <option value="480|6|Askar FRA800">Askar FRA800 · 80mm f/6 · 480mm</option>
+      </optgroup>
+      <optgroup label="⭐ Askar SQA Series">
+        <option value="300|4.4|Askar SQA55">Askar SQA55 · 55mm f/4.4 · 300mm</option>
+        <option value="370|4.1|Askar SQA66">Askar SQA66 · 66mm f/4.1 · 370mm</option>
+        <option value="430|4.3|Askar SQA85">Askar SQA85 · 85mm f/4.3 · 430mm</option>
+        <option value="200|3.9|Askar ACL200">Askar ACL200 · 50mm f/3.9 · Grand champ</option>
+      </optgroup>
+      <optgroup label="Takahashi">
+        <option value="924|7.7|Takahashi TSA-120">Takahashi TSA-120 · 120mm f/7.7</option>
+        <option value="530|5|Takahashi FSQ-106ED">Takahashi FSQ-106ED · 106mm f/5</option>
+        <option value="385|4.5|Takahashi FSQ-85ED">Takahashi FSQ-85ED · 85mm f/4.5</option>
+        <option value="740|7.4|Takahashi FC-100DZ">Takahashi FC-100DZ · 100mm f/7.4</option>
+      </optgroup>
+      <optgroup label="William Optics">
+        <option value="478|5.9|WO GT81">William Optics GT81 · 81mm f/5.9</option>
+        <option value="250|4.9|WO RedCat 51">William Optics RedCat 51 · 51mm f/4.9</option>
+        <option value="510|6.3|WO ZenithStar 81">WO ZenithStar 81 · 510mm f/6.3</option>
+      </optgroup>
+      <optgroup label="Sharpstar / ES">
+        <option value="451|4.8|Sharpstar 94EDPH">Sharpstar 94EDPH · 94mm f/4.8</option>
+        <option value="400|4|Sharpstar 61EDPH II">Sharpstar 61EDPH II · 61mm f/4</option>
+        <option value="480|5|ES ED80">Explore Scientific ED80 · 480mm f/5</option>
+      </optgroup>
+      <optgroup label="Newton &amp; Dobson">
+        <option value="750|5|Newton 150/750">Newton 150/750 · 150mm f/5</option>
+        <option value="1000|5|Newton 200/1000">Newton 200/1000 · 200mm f/5</option>
+        <option value="1250|5|GSO Dobson 10">GSO Dobson 10" · 250mm f/5</option>
+        <option value="1500|5|GSO Dobson 12">GSO Dobson 12" · 300mm f/5</option>
+      </optgroup>
+    </select>
+    <div class="ct" style="margin-top:10px;margin-bottom:6px">Correcteur / Réducteur</div>
+    <select id="opt-corr" onchange="calcOpt()">
+      <option value="1.0">Aucun (focale native)</option>
+      <optgroup label="⭐ SCT Celestron NexStar">
+        <option value="0.63" selected>Celestron 0.63× ★ NexStar 6SE/8SE/C8</option>
+        <option value="0.7">Celestron 0.7× EdgeHD</option>
+        <option value="0.72">Sky-Watcher 0.72× SCT</option>
+        <option value="0.63">Meade 0.63× SCT</option>
+      </optgroup>
+      <optgroup label="Réducteurs Askar FRA/SQA">
+        <option value="0.76">Askar 0.76× (FRA / SQA)</option>
+        <option value="0.8">Réducteur 0.8× générique</option>
+        <option value="0.85">William Optics 0.85×</option>
+        <option value="0.67">TeleVue 0.67×</option>
+        <option value="0.9">Stellarvue 0.9×</option>
+      </optgroup>
+      <optgroup label="Correcteurs plat champ">
+        <option value="1.0">MPCC III Baader (Newton)</option>
+        <option value="1.0">Takahashi FF Corrector</option>
+        <option value="1.0">Askar Field Flattener</option>
+      </optgroup>
+      <optgroup label="Barlow">
+        <option value="2.0">Barlow ×2.0</option>
+        <option value="2.5">Barlow ×2.5 planétaire</option>
+        <option value="3.0">Barlow ×3.0</option>
+      </optgroup>
+    </select>
+    <div class="ct" style="margin-top:10px;margin-bottom:6px">Caméra / APN</div>
+    <select id="opt-cam" onchange="calcOpt()">
+      <optgroup label="ZWO ASI Couleur refroidies">
+        <option value="3.76|26.1|4.2|ASI2600MC Pro" selected>ASI2600MC Pro · 26MP · 3.76µm · APS-C</option>
+        <option value="5.94|35.6|23.8|ASI2400MC Pro">ASI2400MC Pro · 24MP · 5.94µm · FF</option>
+        <option value="4.63|19.1|13|ASI294MC Pro">ASI294MC Pro · 11MP · 4.63µm</option>
+        <option value="3.76|11.3|11.3|ASI533MC Pro">ASI533MC Pro · 9MP · carré 1"</option>
+        <option value="2.9|6.4|4.2|ASI485MC">ASI485MC · 8MP · 2.9µm</option>
+        <option value="2.9|2|1.5|ASI662MC">ASI662MC · planétaire · 2.9µm</option>
+      </optgroup>
+      <optgroup label="ZWO ASI Monochromes">
+        <option value="3.8|17.6|13.3|ASI1600MM Pro">ASI1600MM Pro · 16MP · 3.8µm</option>
+        <option value="3.76|23.5|15.7|ASI2600MM Pro">ASI2600MM Pro · 26MP · 3.76µm</option>
+        <option value="3.76|23.5|15.7|ASI6200MM Pro">ASI6200MM Pro · 62MP · 3.76µm</option>
+        <option value="2.4|8.9|7.1|ASI183MM Pro">ASI183MM Pro · 20MP · 2.4µm</option>
+        <option value="2.9|5.6|3.2|ASI290MM Mini">ASI290MM Mini · guide · 2.9µm</option>
+      </optgroup>
+      <optgroup label="QHY / Player One">
+        <option value="3.76|23.5|15.7|QHY 268C">QHY 268C · 26MP · APS-C</option>
+        <option value="3.76|35.6|23.8|QHY 600M Mono">QHY 600M · 61MP · Mono · FF</option>
+        <option value="3.76|23.5|15.7|Player One Poseidon-C">Player One Poseidon-C · 25MP</option>
+      </optgroup>
+      <optgroup label="Canon APN">
+        <option value="6.45|36|24|Canon EOS Ra">Canon EOS Ra · 30MP · Ha modif. · FF</option>
+        <option value="5.72|35.9|24|Canon EOS 6D Mk II">Canon EOS 6D Mk II · 26MP · FF</option>
+        <option value="5.72|35.9|24|Canon EOS R6 Mk II">Canon EOS R6 Mk II · 24MP · FF</option>
+        <option value="5.7|22.3|14.9|Canon 1000D modifié">Canon EOS 1000D modifié · APS-C</option>
+      </optgroup>
+      <optgroup label="Nikon APN">
+        <option value="4.35|35.9|24|Nikon D810A">Nikon D810A · 36MP · Ha modif.</option>
+        <option value="5.94|35.9|24|Nikon Z6 II">Nikon Z6 II · 24MP · FF</option>
+      </optgroup>
+      <optgroup label="Sony APN">
+        <option value="8.4|35.6|23.8|Sony A7S III">Sony A7S III · 12MP · Haute ISO · FF</option>
+        <option value="3.76|35.6|23.8|Sony A7R IV">Sony A7R IV · 61MP · FF</option>
+      </optgroup>
+    </select>
+  </div>
+  <div class="res-box">
+    <div style="font-size:11px;font-weight:600;color:#633806;margin-bottom:8px" id="opt-desc">NexStar 6SE + 0.63× + ASI2600MC Pro</div>
+    <div class="g4" style="margin-bottom:0">
+      <div style="text-align:center;background:var(--bg1);border-radius:8px;padding:9px"><div style="font-size:18px;font-weight:700;color:var(--acc)" id="opt-focal">945mm</div><div style="font-size:9px;color:var(--dim)">Focale eff.</div></div>
+      <div style="text-align:center;background:var(--bg1);border-radius:8px;padding:9px"><div style="font-size:18px;font-weight:700" id="opt-fnum">f/6.3</div><div style="font-size:9px;color:var(--dim)">Ouverture</div></div>
+      <div style="text-align:center;background:var(--bg1);border-radius:8px;padding:9px"><div style="font-size:18px;font-weight:700" id="opt-scale">0.82"</div><div style="font-size:9px;color:var(--dim)">/pixel</div></div>
+      <div style="text-align:center;background:var(--bg1);border-radius:8px;padding:9px"><div style="font-size:14px;font-weight:700" id="opt-fov">1.59°×1.06°</div><div style="font-size:9px;color:var(--dim)">Champ total</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MONTURES -->
+<div class="panel" id="panel-montures">
+  <div class="pt">Montures</div>
+  <div class="card">
+    <select id="mount-sel" onchange="selMount()">
+      <optgroup label="⭐ Celestron NexStar SE">
+        <option value="NexStar 4SE|Altaz fourche|GoTo|4">NexStar 4SE · GoTo fourche</option>
+        <option value="NexStar 6SE|Altaz fourche|GoTo|5" selected>NexStar 6SE · GoTo fourche ★</option>
+        <option value="NexStar 8SE|Altaz fourche|GoTo|7">NexStar 8SE · GoTo fourche</option>
+        <option value="Celestron AVX|EQ allemande|GoTo|13.6">Advanced VX (AVX) · 13.6kg</option>
+        <option value="Celestron CGEM II|EQ allemande|GoTo|18">CGEM II · 18kg</option>
+        <option value="Celestron CGX-L|EQ robuste|GoTo|23">CGX-L · 23kg</option>
+      </optgroup>
+      <optgroup label="Sky-Watcher">
+        <option value="SW HEQ5 Pro|EQ allemande|GoTo|14">HEQ5 Pro · 14kg</option>
+        <option value="SW EQ6-R Pro|EQ allemande|GoTo|20">EQ6-R Pro · 20kg</option>
+        <option value="SW EQ8-R Pro|EQ robuste|GoTo|50">EQ8-R Pro · 50kg</option>
+        <option value="SW AZ-GTi WiFi|Altaz WiFi|GoTo WiFi|5">AZ-GTi WiFi · 5kg</option>
+        <option value="Star Adventurer GTi|EQ nomade|GoTo|5">Star Adventurer GTi</option>
+      </optgroup>
+      <optgroup label="ZWO Harmonic Drive">
+        <option value="ZWO AM3|Harmonic Drive|GoTo|6">ZWO AM3 · 6kg</option>
+        <option value="ZWO AM5|Harmonic Drive|GoTo|13">ZWO AM5 · 13kg · ASIAIR natif</option>
+      </optgroup>
+      <optgroup label="iOptron">
+        <option value="iOptron GEM45|EQ CEM|GoTo|20">iOptron GEM45 · 20kg</option>
+        <option value="iOptron CEM60|EQ CEM|GoTo|27">iOptron CEM60 · 27kg</option>
+        <option value="iOptron CEM120|EQ CEM|GoTo|55">iOptron CEM120 · 55kg</option>
+      </optgroup>
+      <optgroup label="Meade / Premium">
+        <option value="Meade LX90-ACF|Fourche|GoTo|15">Meade LX90-ACF</option>
+        <option value="Meade LX200-ACF|Fourche double|GoTo|20">Meade LX200-ACF</option>
+        <option value="Losmandy G11|EQ|GoTo|27">Losmandy G11 · 27kg</option>
+        <option value="Paramount MX+|EQ Direct Drive|GoTo|45">Paramount MX+</option>
+        <option value="10Micron GM2000|EQ ultra-précis|GoTo|50">10Micron GM2000</option>
+        <option value="Vixen SXP2|EQ|GoTo|16">Vixen SXP2 · Star Book Ten</option>
+        <option value="Rainbow Astro RST-135|EQ portable|GoTo|13.5">Rainbow Astro RST-135</option>
+      </optgroup>
+    </select>
+    <div class="res-box" style="margin-top:10px;margin-bottom:0">
+      <div class="g2" style="margin-bottom:0">
+        <div><div style="font-size:9px;color:var(--dim)">Monture</div><div style="font-size:14px;font-weight:700" id="mount-name">NexStar 6SE</div></div>
+        <div><div style="font-size:9px;color:var(--dim)">Type</div><div style="font-size:14px;font-weight:700" id="mount-type">Altaz fourche</div></div>
+        <div><div style="font-size:9px;color:var(--dim)">GoTo</div><div style="font-size:14px;font-weight:700;color:var(--ok)" id="mount-goto">GoTo</div></div>
+        <div><div style="font-size:9px;color:var(--dim)">Charge</div><div style="font-size:14px;font-weight:700" id="mount-load">5 kg</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GPS -->
+<div class="panel" id="panel-gps">
+  <div class="pt">GPS & localisation iPad</div>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <div class="sdot" id="gps-dot" style="background:var(--warn)"></div>
+      <span style="font-size:12px;font-weight:500" id="gps-st">Acquisition GPS…</span>
+      <button class="btn btn-p" style="margin-left:auto;min-height:auto;padding:8px 12px;font-size:12px" onclick="useRealGPS()">GPS réel</button>
+    </div>
+    <div class="row"><div class="lbl">Latitude</div><div style="font-family:'SF Mono',monospace;font-size:12px;font-weight:500;color:var(--txt)" id="gps-lat">49° 21' 36" N</div></div>
+    <div class="row"><div class="lbl">Longitude</div><div style="font-family:'SF Mono',monospace;font-size:12px;font-weight:500;color:var(--txt)" id="gps-lon">6° 11' 60" E</div></div>
+    <div class="row"><div class="lbl">Altitude</div><div class="val" id="gps-alt">184 m</div></div>
+    <div class="sep"></div>
+    <div class="row"><div class="lbl">LST actuelle</div><div style="font-family:'SF Mono',monospace;font-size:12px;color:var(--acc)" id="gps-lst">—</div></div>
+    <div class="row"><div class="lbl">Polaris altitude</div><div class="val" style="color:var(--acc);font-weight:700" id="gps-pol">49.4°</div></div>
+    <div class="row"><div class="lbl">Nuit astro.</div><div class="val" style="color:var(--ok)">~21h50 – 05h00</div></div>
+  </div>
+  <div class="card">
+    <div class="ct" style="margin-bottom:7px">Saisie manuelle</div>
+    <div class="row"><div class="lbl">Lieu</div><input type="text" id="loc-name" value="Yutz, France" style="flex:1"></div>
+    <div class="g2" style="margin-top:7px">
+      <div><div style="font-size:11px;color:var(--dim);margin-bottom:3px">Latitude °</div><input type="number" id="loc-lat" value="49.36" step="0.001" oninput="manualGPS()"></div>
+      <div><div style="font-size:11px;color:var(--dim);margin-bottom:3px">Longitude °</div><input type="number" id="loc-lon" value="6.20" step="0.001" oninput="manualGPS()"></div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:7px;flex-wrap:wrap" id="gps-presets"></div>
+  </div>
+</div>
+
+<!-- BOUSSOLE -->
+<div class="panel" id="panel-boussole">
+  <div class="pt">Boussole iPad</div>
+  <div class="g2">
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;gap:10px">
+      <canvas id="comp-cv" width="220" height="220" style="border:none;max-width:100%"></canvas>
+      <div style="text-align:center"><div style="font-size:28px;font-weight:700;color:var(--acc)" id="comp-deg">—</div><div style="font-size:12px;color:var(--dim)" id="comp-dir">Démarrer</div></div>
+      <button class="btn btn-p" onclick="startCompass()" style="width:100%">Démarrer boussole iPad</button>
+    </div>
+    <div class="card">
+      <div class="ct">Orientation</div>
+      <div class="row"><div class="lbl">Az. magnétique</div><div class="val" id="c-mag">—</div></div>
+      <div class="row"><div class="lbl">Déclinaison</div><div class="val" id="c-decl">+2.1°E</div></div>
+      <div class="row"><div class="lbl">Az. géographique</div><div class="val" style="color:var(--acc);font-weight:700" id="c-geo">—</div></div>
+      <div class="sep"></div>
+      <div class="row"><div class="lbl">Inclinaison X</div><div class="val" id="inc-x">—</div></div>
+      <div class="row"><div class="lbl">Inclinaison Y</div><div class="val" id="inc-y">—</div></div>
+      <div style="margin-top:5px"><span class="bk off" id="inc-status">En attente</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE EQ -->
+<div class="panel" id="panel-tableeq">
+  <div class="pt">Table équatoriale — NexStar 6SE</div>
+  <div class="res-box" style="margin-bottom:10px">
+    <div style="font-size:12px;font-weight:700;color:#633806;margin-bottom:8px">Configuration NexStar 6SE détectée</div>
+    <div class="g2" style="margin-bottom:0">
+      <div><div style="font-size:9px;color:var(--dim)">Télescope</div><div style="font-size:14px;font-weight:700">NexStar 6SE · SCT 150mm · GoTo</div></div>
+      <div><div style="font-size:9px;color:var(--dim)">Axe polaire</div><div style="font-size:28px;font-weight:700;color:var(--acc)" id="teq-axis">—</div><div style="font-size:9px;color:var(--warn)">= latitude GPS</div></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="row"><div class="lbl">Type table</div><select id="teq-type" onchange="calcTeq()"><option value="platform">Plateforme EQ NexStar</option><option value="segment">Segment circulaire</option><option value="cone">Cône polaire</option><option value="custom">Personnalisé</option></select></div>
+      <div style="margin-top:8px"><div style="font-size:11px;color:var(--dim);margin-bottom:3px">Masse (kg)</div><input type="number" id="teq-mass" value="12" min="5" max="50" step="0.5" oninput="calcTeq()"></div>
+      <div style="margin-top:8px"><div style="font-size:11px;color:var(--dim);margin-bottom:3px">Durée suivi (min)</div><input type="number" id="teq-dur" value="60" min="10" max="90" step="5" oninput="calcTeq()"></div>
+      <div class="row" style="margin-top:8px"><div class="lbl">Latitude GPS</div><div class="val" style="color:var(--acc)" id="teq-lat">—</div></div>
+    </div>
+    <div class="card">
+      <div class="row"><div class="lbl">Rayon segment</div><div class="val" id="teq-r">—</div></div>
+      <div class="row"><div class="lbl">Période moteur</div><div class="val">86 164 s</div></div>
+      <div class="row"><div class="lbl">Dérive max</div><div class="val" id="teq-drift" style="color:var(--ok)">—</div></div>
+      <div class="sep"></div>
+      <div class="row"><div class="lbl">Focale native</div><div class="val">1500mm f/10</div></div>
+      <div class="row"><div class="lbl">Avec réd. 0.63×</div><div class="val" style="color:var(--acc);font-weight:700">945mm f/6.3</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct" style="margin-bottom:8px">Procédure — 9 étapes NexStar 6SE</div>
+    <div id="teq-steps"></div>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button class="btn btn-p" onclick="teqNext()" style="flex:1">Étape suivante</button>
+      <button class="btn" onclick="teqReset()" style="flex:1">Réinitialiser</button>
+    </div>
+  </div>
+</div>
+
+<!-- MÉTÉO -->
+<div class="panel" id="panel-meteo">
+  <div class="pt">Météo live</div>
+  <div class="ps" id="meteo-note">Open-Meteo · Fonctionne sur Box WiFi</div>
+  <div id="meteo-offline-warn" style="display:none;background:rgba(239,159,39,.1);border:1px solid rgba(239,159,39,.3);border-radius:9px;padding:9px;margin-bottom:9px;font-size:11px;color:var(--warn)">
+    📶 Réseau ASIAIR direct détecté — météo en cache (dernières données connues)
+  </div>
+  <div class="g3"><div class="card"><div class="ct">Seeing pic</div><div style="font-size:18px;font-weight:700;color:var(--ok)">2.1"</div></div><div class="card"><div class="ct">Transparence</div><div style="font-size:18px;font-weight:700">82%</div></div><div class="card"><div class="ct">Fenêtre</div><div style="font-size:14px;font-weight:700;color:var(--acc)">22h–01h30</div></div></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="ct" style="margin:0">Heure par heure</div>
+      <button class="btn" style="min-height:auto;padding:5px 10px;font-size:11px" onclick="fetchMeteo()">Actualiser</button>
+    </div>
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px" id="meteo-slots"></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="ct">Conditions</div><div class="row"><div class="lbl">Température</div><div class="val" id="met-temp">1°C</div></div><div class="row"><div class="lbl">Vent</div><div class="val" id="met-wind">11 km/h</div></div><div class="row"><div class="lbl">Humidité</div><div class="val">61%</div></div></div>
+    <div class="card"><div class="ct">Seeing Antoniadi</div><div style="text-align:center;padding:8px 0"><div style="font-size:30px;font-weight:700;color:var(--ok)">II</div><div style="font-size:11px;color:var(--dim);margin-top:3px">Bon · légères ondulations</div></div></div>
+  </div>
+</div>
+
+<!-- CATALOGUE -->
+<div class="panel" id="panel-catalogue">
+  <div class="pt">Catalogue NGC/IC</div>
+  <div class="g2"><div class="card"><div class="ct">NGC/IC+Messier</div><div style="font-size:20px;font-weight:700">110 474</div></div><div class="card"><div class="ct">Personnalisés</div><div style="font-size:20px;font-weight:700;color:var(--acc)" id="cat-cnt">0</div></div></div>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <input type="text" id="cs" placeholder="M31, NGC 891, Andromède…" oninput="fCat()" style="flex:1">
+    <select id="ct2" onchange="fCat()" style="width:auto"><option value="">Tous</option><option value="GAL">Galaxies</option><option value="NEB">Nébuleuses</option><option value="OC">Amas</option><option value="PERSO">Perso.</option></select>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <button class="btn btn-p" onclick="showAdd()" style="flex:1">+ Ajouter</button>
+    <button class="btn" onclick="alert('Formats :\n.csv · .json · .xml (Carte du Ciel)\n.txt (SkySafari) · .ngc · .sac')" style="flex:1">Importer</button>
+  </div>
+  <div id="add-cat-f" style="display:none">
+    <div class="card" style="border-color:rgba(232,145,42,.3);margin-bottom:10px">
+      <div class="ct">Nouvel objet personnalisé</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+        <input type="text" id="ac-n" placeholder="Désignation (ex: NGC 7822)">
+        <input type="text" id="ac-d" placeholder="Description">
+        <select id="ac-t"><option value="GAL">Galaxie</option><option value="NEB">Nébuleuse</option><option value="OC">Amas ouvert</option><option value="GC">Amas glob.</option><option value="PERSO">Autre</option></select>
+        <input type="number" id="ac-mag" value="9.0" step="0.1" placeholder="Magnitude">
+        <div style="display:flex;gap:8px"><button class="btn btn-p" onclick="addCat()" style="flex:1">Ajouter</button><button class="btn" onclick="document.getElementById('add-cat-f').style.display='none'" style="flex:1">Annuler</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="padding:0">
+    <div style="display:flex;padding:8px 12px;border-bottom:1px solid var(--brd);font-size:10px;font-weight:700;color:var(--dim)"><span style="width:68px">Nom</span><span style="flex:1">Description</span><span style="width:38px">Mag</span><span style="width:38px">Alt</span></div>
+    <div id="cat-list" style="max-height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+  </div>
+</div>
+
+<!-- PLANIFICATEUR -->
+<div class="panel" id="panel-planif">
+  <div class="pt">Planificateur de nuit</div>
+  <div class="g3"><div class="card"><div class="ct">Créneau</div><div style="font-size:14px;font-weight:700">21h45–02h15</div></div><div class="card"><div class="ct">Objets</div><div style="font-size:20px;font-weight:700">6</div></div><div class="card"><div class="ct">Durée</div><div style="font-size:20px;font-weight:700">4h 28m</div></div></div>
+  <div class="card"><div class="ct" style="margin-bottom:8px">Timeline</div><div id="plan-list"></div></div>
+  <div class="card"><div class="ct" style="margin-bottom:7px">Extinction monture</div>
+    <select id="park-mode" onchange="updPark()" style="margin-bottom:10px"><option value="manual">Manuel</option><option value="end">Auto · fin séquence</option><option value="time">Auto · heure programmée</option><option value="dawn">Auto · aube astronomique</option></select>
+    <div class="row"><div class="lbl">Statut</div><div class="val" id="park-s">Manuel</div></div>
+    <div style="margin-top:8px;display:flex;gap:8px"><button class="btn btn-ok" onclick="alert('Monture parquée !')" style="flex:1">Parquer maintenant</button><button class="btn btn-red" style="flex:1">Annuler</button></div>
+  </div>
+</div>
+
+<!-- CARTE DU CIEL -->
+<div class="panel" id="panel-ciel">
+  <div class="pt">Carte du ciel</div>
+  <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">
+    <span style="font-size:11px;color:var(--dim)">Heure</span>
+    <input type="range" min="20" max="27" step="0.25" value="22" id="sky-t" oninput="updSky()">
+    <span style="font-size:12px;font-weight:600;min-width:42px" id="sky-tv">22h00</span>
+  </div>
+  <canvas id="sky-cv" style="width:100%;height:auto;border-radius:12px;border:1px solid var(--brd)" width="640" height="290"></canvas>
+</div>
+
+<!-- EAF -->
+<div class="panel" id="panel-eaf">
+  <div class="pt">EAF — Contrôle manuel</div>
+  <div class="card">
+    <div style="text-align:center;padding:10px 0"><div style="font-size:38px;font-weight:700;color:var(--acc)" id="eaf-pos">28 450</div><div style="font-size:10px;color:var(--dim)">steps · HFR : <span id="eaf-hfr">1.82</span></div></div>
+    <div class="eaf-grid">
+      <button class="eafb" onclick="eafMove(-1000)">«</button><button class="eafb" onclick="eafMove(-100)">‹‹</button><button class="eafb" onclick="eafMove(-10)">‹</button>
+      <div style="display:flex;align-items:center;justify-content:center;background:rgba(232,145,42,.1);border:1px solid rgba(232,145,42,.3);border-radius:8px;font-size:11px;color:var(--acc);font-weight:700">EAF</div>
+      <button class="eafb" onclick="eafMove(10)">›</button><button class="eafb" onclick="eafMove(100)">››</button><button class="eafb" onclick="eafMove(1000)">»</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px"><input type="number" id="eaf-step" value="50" style="width:80px;flex:none"><button class="btn" onclick="eafMove(-parseInt(document.getElementById('eaf-step').value||50))" style="flex:1">− N</button><button class="btn" onclick="eafMove(parseInt(document.getElementById('eaf-step').value||50))" style="flex:1">+ N</button></div>
+    <div class="row"><div class="lbl">Goto position</div><input type="number" id="eaf-goto-v" value="28450" style="flex:1"><button class="btn btn-p" onclick="eafGoto()" style="min-height:auto;padding:10px;flex:none">Go</button></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ok" onclick="eafAuto()" style="flex:1">Auto-focus HFR</button><button class="btn" onclick="eafSave()" style="flex:1">Mémoriser</button><button class="btn btn-red" style="flex:1">Stop</button></div>
+  </div>
+  <div class="card"><div class="ct">Positions mémorisées</div><div id="eaf-mems" style="margin-top:5px;display:flex;flex-direction:column;gap:5px"></div></div>
+</div>
+
+<!-- ALIGNEMENT POLAIRE -->
+<div class="panel" id="panel-polaire">
+  <div class="pt">Alignement polaire</div>
+  <div class="card">
+    <div style="text-align:center;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.2);border-radius:10px;padding:14px;margin-bottom:10px"><div style="font-size:11px;color:var(--dim)">Erreur totale</div><div style="font-size:36px;font-weight:700;color:var(--ok)" id="pol-tot">20.5"</div><div style="font-size:10px;color:var(--dim)">arcsec · objectif &lt; 30"</div></div>
+    <div style="margin-bottom:10px"><div style="font-size:12px;color:var(--dim);margin-bottom:5px">AZ : <span id="pol-azv" style="color:var(--txt);font-weight:700">18"</span></div><input type="range" min="0" max="120" step="1" value="18" id="pol-az" oninput="updPol()"></div>
+    <div><div style="font-size:12px;color:var(--dim);margin-bottom:5px">ALT : <span id="pol-altv" style="color:var(--txt);font-weight:700">9"</span></div><input type="range" min="0" max="120" step="1" value="9" id="pol-alt" oninput="updPol()"></div>
+    <div class="sep"></div>
+    <div class="g2"><div><div style="font-size:10px;color:var(--dim)">Arcminutes</div><div style="font-size:16px;font-weight:700" id="pol-amin">0.34'</div></div><div><div style="font-size:10px;color:var(--dim)">Degrés</div><div style="font-size:16px;font-weight:700" id="pol-deg">0.0057°</div></div></div>
+    <div class="row"><div class="lbl">Évaluation</div><span class="bk ok" id="pol-eval">Excellent</span></div>
+    <div style="margin-top:10px"><button class="btn btn-p" style="width:100%" onclick="alert('PAA ASIAIR lancé !')">Lancer PAA ASIAIR</button></div>
+  </div>
+</div>
+
+<!-- COLLIMATION -->
+<div class="panel" id="panel-collim">
+  <div class="pt">Collimation</div>
+  <div class="g2">
+    <div class="card">
+      <div style="margin-bottom:10px"><div style="font-size:12px;color:var(--dim);margin-bottom:5px">Axe X : <span id="vcx" style="color:var(--txt);font-weight:700">5</span></div><input type="range" min="-30" max="30" step="1" value="5" id="ccx" oninput="drawC()"></div>
+      <div><div style="font-size:12px;color:var(--dim);margin-bottom:5px">Axe Y : <span id="vcy" style="color:var(--txt);font-weight:700">-8</span></div><input type="range" min="-30" max="30" step="1" value="-8" id="ccy" oninput="drawC()"></div>
+      <div style="margin-top:10px" id="cs2"><span class="bk warn">Ajustement requis</span></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center"><canvas id="col-cv" width="160" height="160" style="border:none"></canvas></div>
+  </div>
+</div>
+
+<!-- BACK FOCUS -->
+<div class="panel" id="panel-backfocus">
+  <div class="pt">Back focus</div>
+  <div class="card">
+    <div class="ct">Tube</div>
+    <select id="bf-sc" onchange="calcBF()" style="margin-top:6px">
+      <option value="146|NexStar 6SE natif">NexStar 6SE natif · 146mm</option>
+      <option value="105|NexStar 6SE + réducteur 0.63×" selected>NexStar 6SE + 0.63× · 105mm</option>
+      <option value="146|Celestron C8">Celestron C8 · 146mm</option>
+      <option value="55|Réfracteur APO / Askar">Réfracteur APO / Askar · 55mm</option>
+      <option value="70|Newton 200/1000">Newton 200/1000 · 70mm</option>
+    </select>
+    <div class="ct" style="margin-top:10px">Caméra</div>
+    <select id="bf-cm" onchange="calcBF()" style="margin-top:6px">
+      <option value="17.5">ASI2600MC Pro / ASI1600MM · 17.5mm</option>
+      <option value="44">Canon EOS Ra / 6D · 44mm</option>
+      <option value="46.5">Nikon D810A · 46.5mm</option>
+      <option value="18">Sony A7 · 18mm</option>
+    </select>
+    <div class="ct" style="margin-top:10px">Bague allonge (mm)</div>
+    <input type="number" id="bf-ex" value="0" min="0" max="100" step="1" oninput="calcBF()" style="width:100px;margin-top:6px">
+  </div>
+  <div class="res-box" style="text-align:center">
+    <div style="font-size:10px;color:var(--dim)">Back focus calculé</div>
+    <div style="font-size:34px;font-weight:700;color:var(--acc);margin:6px 0" id="bf-res">105.0 mm</div>
+    <div id="bf-st"><span class="bk ok">Correct</span></div>
+    <div style="font-size:10px;color:var(--dim);margin-top:6px" id="bf-note">NexStar 6SE + réducteur 0.63×</div>
+  </div>
+</div>
+
+<!-- PRISE DE VUE -->
+<div class="panel" id="panel-prise">
+  <div class="pt">Prise de vue</div>
+  <div class="card">
+    <div class="row"><div class="lbl">Cible</div><select id="pv-obj" onchange="calcPV()"><option value="M31">M31 — Galaxie Andromède</option><option value="M42">M42 — Nébuleuse Orion</option><option value="M57">M57 — Nébuleuse Lyre</option><option value="M13">M13 — Amas Hercule</option><option value="Saturn">Saturne (planétaire)</option><option value="Jupiter">Jupiter (planétaire)</option><option value="Mars">Mars (planétaire)</option><option value="NGC891">NGC 891 — Galaxie profil</option><option value="IC434">IC 434 Ha</option><option value="M45">M45 — Pléiades</option><option value="M51">M51 — Galaxies Tourbillon</option></select></div>
+    <div class="row" style="margin-top:8px"><div class="lbl">Bortle</div><select id="pv-bor" onchange="calcPV()"><option value="3">3 — Rural excellent</option><option value="4">4 — Rural</option><option value="6" selected>6 — Périurbain (Yutz)</option><option value="7">7 — Suburbain</option><option value="8">8 — Urbain</option></select></div>
+    <div class="row" style="margin-top:8px"><div class="lbl">Filtre</div><select id="pv-cls" onchange="calcPV()"><option value="none">Aucun</option><option value="cls" selected>CLS / L-Pro</option><option value="ha">H-Alpha 7nm</option><option value="oiii">OIII 7nm</option><option value="sii">SII 7nm</option></select></div>
+  </div>
+  <div class="res-box">
+    <div style="font-size:12px;font-weight:700;color:#633806;margin-bottom:9px" id="pv-ttl">M31 · CLS · Bortle 6</div>
+    <div class="g3" style="margin-bottom:9px">
+      <div style="text-align:center;background:var(--bg1);border-radius:8px;padding:9px"><div style="font-size:22px;font-weight:700" id="pv-exp">180 s</div><div style="font-size:9px;color:var(--dim)">Pose</div></div>
+      <div style="text-align:center;background:var(--bg1);border-radius:8px;padding:9px"><div style="font-size:22px;font-weight:700" id="pv-iso">ISO 800</div><div style="font-size:9px;color:var(--dim)">ISO</div></div>
+      <div style="text-align:center;background:var(--bg1);border-radius:8px;padding:9px"><div style="font-size:22px;font-weight:700" id="pv-nb">80</div><div style="font-size:9px;color:var(--dim)">Poses</div></div>
+    </div>
+    <div style="font-size:11px;color:#4a9eff;background:rgba(74,158,255,.08);border-radius:7px;padding:8px;margin-bottom:8px" id="pv-note">CLS/L-Pro : +40% durée</div>
+    <div style="font-size:11px;color:#633806;background:rgba(232,145,42,.08);border-radius:7px;padding:8px;margin-bottom:9px" id="pv-scope">NexStar 6SE f/10 : ISO modéré conseillé</div>
+    <div class="row"><div class="lbl">Suivi</div><select><option>Sidéral</option><option>Lunaire</option><option>Solaire</option></select></div>
+    <div class="row" style="margin-top:7px"><div class="lbl">Extinction</div><select><option>Manuel</option><option>Auto · fin séquence</option><option>Auto · aube astronomique</option></select></div>
+    <div class="row" style="margin-top:5px"><div class="lbl">Intégration</div><div class="val" id="pv-total" style="color:var(--ok)">4h 00m</div></div>
+    <div style="margin-top:10px"><button class="btn btn-p" style="width:100%" onclick="alert('Séquence envoyée à l\'ASIAIR !')">Envoyer à l'ASIAIR</button></div>
+  </div>
+</div>
+
+<!-- TENSIONS -->
+<div class="panel" id="panel-eqp">
+  <div class="pt">Tensions & batterie</div>
+  <div class="card" style="margin-bottom:9px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:7px"><div class="ct" style="margin:0">Batterie portable</div><span class="bk ok" id="bat-lbl">84%</span></div>
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px"><div style="flex:1;height:18px;background:var(--bg2);border-radius:9px;overflow:hidden"><div id="bat-bar" style="height:100%;border-radius:9px;background:var(--ok);width:84%"></div></div><span style="font-size:15px;font-weight:700;min-width:40px" id="bat-pct">84%</span></div>
+    <input type="range" min="10" max="100" step="1" value="84" id="bat-sl" oninput="updBat()">
+  </div>
+  <div class="card"><div class="ct" style="margin-bottom:8px">Tensions live</div><div id="volt-list"></div></div>
+</div>
+
+<!-- DOF -->
+<div class="panel" id="panel-dof">
+  <div class="pt">DOF & calibration</div>
+  <div class="g3"><div class="card"><div class="ct">Darks</div><div style="font-size:20px;font-weight:700">124</div></div><div class="card"><div class="ct">Flats</div><div style="font-size:20px;font-weight:700">45</div></div><div class="card"><div class="ct">Offsets</div><div style="font-size:20px;font-weight:700">200</div></div></div>
+  <div class="card">
+    <div style="padding:10px;background:var(--bg2);border-radius:8px;margin-bottom:7px"><div style="font-size:12px;font-weight:600">▣ Darks · -15°C · 180s · G100</div><div style="font-size:10px;color:var(--dim);font-family:monospace">/Prometheus/Calibration/Darks/</div></div>
+    <div style="padding:10px;background:var(--bg2);border-radius:8px;margin-bottom:7px"><div style="font-size:12px;font-weight:600">◫ Flats · L-Pro · 25k ADU</div><div style="font-size:10px;color:var(--dim);font-family:monospace">/Prometheus/Calibration/Flats/</div></div>
+    <div style="padding:10px;background:var(--bg2);border-radius:8px"><div style="font-size:12px;font-weight:600">◻ Offsets / Bias · G100</div><div style="font-size:10px;color:var(--dim);font-family:monospace">/Prometheus/Calibration/Offsets/</div></div>
+  </div>
+</div>
+
+<!-- 3-SIGMA -->
+<div class="panel" id="panel-sigma">
+  <div class="pt">Règle 3-Sigma</div>
+  <div class="card">
+    <div style="margin-bottom:10px"><div style="font-size:12px;color:var(--dim);margin-bottom:5px">Kappa σ : <span id="vk" style="color:var(--txt);font-weight:700">3.0</span></div><input type="range" min="1.5" max="5" step="0.1" value="3" id="kappa" oninput="updSig()"></div>
+    <div><div style="font-size:12px;color:var(--dim);margin-bottom:5px">Poses : <span id="vn" style="color:var(--txt);font-weight:700">47</span></div><input type="range" min="10" max="200" step="1" value="47" id="nf" oninput="updSig()"></div>
+  </div>
+  <div class="g3"><div class="card"><div class="ct">Rejetées</div><div style="font-size:22px;font-weight:700;color:var(--err)" id="sr">4</div></div><div class="card"><div class="ct">Conservées</div><div style="font-size:22px;font-weight:700;color:var(--ok)" id="sk">43</div></div><div class="card"><div class="ct">Gain SNR</div><div style="font-size:22px;font-weight:700;color:var(--acc)" id="ss">+0.4 dB</div></div></div>
+</div>
+
+
+<!-- ══ MES ÉQUIPEMENTS ══ -->
+<div class="panel" id="panel-myequip">
+  <div class="pt">Mes équipements</div>
+  <div class="ps">Ajouter vos tubes, caméras, montures, APN, lunettes de guidage · Import/Export JSON · Contribuer sur GitHub</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="btn btn-p" onclick="showEquipForm()" style="flex:1">+ Ajouter</button>
+    <button class="btn btn-ok" onclick="exportEquip()" style="flex:1">↑ Exporter JSON</button>
+    <button class="btn" onclick="importEquip()" style="flex:1">↓ Importer JSON</button>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="eq-cat-btns">
+    <button class="btn" id="ecb-all" onclick="equipFilter('all',this)" style="padding:6px 12px;min-height:auto;font-size:11px;background:var(--acc);color:#fff;border-color:var(--acc)">Tous</button>
+    <button class="btn" id="ecb-scope" onclick="equipFilter('scope',this)" style="padding:6px 12px;min-height:auto;font-size:11px">Tubes</button>
+    <button class="btn" id="ecb-camera" onclick="equipFilter('camera',this)" style="padding:6px 12px;min-height:auto;font-size:11px">Caméras</button>
+    <button class="btn" id="ecb-apn" onclick="equipFilter('apn',this)" style="padding:6px 12px;min-height:auto;font-size:11px">APN</button>
+    <button class="btn" id="ecb-mount" onclick="equipFilter('mount',this)" style="padding:6px 12px;min-height:auto;font-size:11px">Montures</button>
+    <button class="btn" id="ecb-guide" onclick="equipFilter('guide',this)" style="padding:6px 12px;min-height:auto;font-size:11px">Guidage</button>
+    <button class="btn" id="ecb-corrector" onclick="equipFilter('corrector',this)" style="padding:6px 12px;min-height:auto;font-size:11px">Correcteurs</button>
+    <button class="btn" id="ecb-accessory" onclick="equipFilter('accessory',this)" style="padding:6px 12px;min-height:auto;font-size:11px">Accessoires</button>
+  </div>
+  <div id="equip-form-wrap" style="display:none">
+    <div style="background:rgba(232,145,42,.06);border:1px solid rgba(232,145,42,.2);border-radius:12px;padding:13px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px" id="ef-title">Ajouter un équipement</div>
+      <div style="display:flex;gap:8px;margin-bottom:9px;flex-wrap:wrap">
+        <div style="flex:2;min-width:160px"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">Désignation *</div><input type="text" id="ef-name" placeholder="ex: Newton 200/1000 fait maison" style="width:100%"></div>
+        <div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">Catégorie *</div><select id="ef-cat" style="width:100%" onchange="buildDynFields()"><option value="scope">Tube / Lunette</option><option value="camera">Caméra astro refroidie</option><option value="apn">APN / Hybride</option><option value="mount">Monture</option><option value="guide">Lunette de guidage</option><option value="corrector">Correcteur / Réducteur</option><option value="accessory">Accessoire</option></select></div>
+      </div>
+      <div id="ef-dyn"></div>
+      <div style="display:flex;gap:8px;margin-bottom:9px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">Marque / Fabricant</div><input type="text" id="ef-brand" placeholder="ex: Skywatcher, fait maison…" style="width:100%"></div>
+        <div style="flex:1;min-width:140px"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">Numéro de série (optionnel)</div><input type="text" id="ef-serial" placeholder="SN-XXXXX" style="width:100%"></div>
+      </div>
+      <div style="margin-bottom:9px"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">Notes personnelles</div><input type="text" id="ef-notes" placeholder="Réglages, modifications, observations…" style="width:100%"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ok" onclick="saveEquip()" style="flex:1">Enregistrer</button>
+        <button class="btn btn-red" id="ef-del" onclick="deleteEquip()" style="flex:none;display:none">Supprimer</button>
+        <button class="btn" onclick="cancelEquipForm()" style="flex:none">Annuler</button>
+      </div>
+    </div>
+  </div>
+  <div class="g4" id="equip-stats" style="margin-bottom:12px"></div>
+  <div class="card" style="padding:0">
+    <div style="padding:9px 12px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:8px">
+      <input type="text" id="equip-search" placeholder="Rechercher…" oninput="renderEquipList()" style="flex:1;min-height:36px;font-size:13px">
+      <span style="font-size:11px;color:var(--dim)" id="equip-count">0 équipement</span>
+    </div>
+    <div id="equip-list" style="max-height:420px;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
+  </div>
+  <div class="card" style="margin-top:9px;background:rgba(29,158,117,.04);border-color:rgba(29,158,117,.2)">
+    <div class="ct" style="color:var(--ok);margin-bottom:5px">Contribuer à la base commune</div>
+    <div style="font-size:11px;color:var(--txt);margin-bottom:8px">Vos équipements perso. peuvent enrichir Prometheus pour tous les utilisateurs. Exportez votre JSON et ouvrez une issue sur GitHub.</div>
+    <button class="btn btn-ok" onclick="window.open('https://github.com/morpheus-astro/prometheus/issues/new','_blank')" style="width:100%">Proposer sur GitHub</button>
+  </div>
+  <div class="fcp">Prometheus v6.4 · © 2026 Morpheus · Tous droits réservés<br>github.com/morpheus-astro/prometheus</div>
+</div>
+
+<!-- CHECKLIST -->
+<div class="panel" id="panel-checklist">
+  <div class="pt">Checklist automatique</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="btn btn-p" onclick="ckNext()" style="flex:1">Étape suivante</button>
+    <button class="btn" onclick="ckReset()" style="flex:1">Réinitialiser</button>
+    <button class="btn" onclick="ckAll()" style="flex:1">Tout valider</button>
+  </div>
+  <div class="card"><div id="ck-list"></div></div>
+  <div id="bon-ciel" style="display:none">
+    <div style="background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.25);border-radius:12px;padding:18px;text-align:center;margin-top:12px">
+      <div style="font-size:22px;font-weight:700;color:var(--ok)">Bon ciel !</div>
+      <div style="font-size:12px;color:var(--ok);margin-top:4px">Prometheus est prêt — © Morpheus 2026</div>
+      <div style="font-size:24px;margin-top:10px">✦ ✦ ✦</div>
+    </div>
+  </div>
+  <div class="fcp">Prometheus v6.4 · © 2026 Morpheus · Tous droits réservés<br>macOS · Windows · Android · iOS / iPadOS</div>
+</div>
+
+<!-- MISES À JOUR -->
+<div class="panel" id="panel-updates">
+  <div class="pt">Mises à jour</div>
+  <div class="g2"><div class="card"><div class="ct">Prometheus</div><div style="font-size:20px;font-weight:700">v6.3</div><span class="bk ok">À jour</span></div><div class="card"><div class="ct">ASIAIR</div><div style="font-size:20px;font-weight:700">v2.4</div><span class="bk ok">À jour</span></div></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px"><div class="ct" style="margin:0">Vérification auto · toutes 6h</div><button class="btn" style="min-height:auto;padding:6px 10px;font-size:11px" onclick="alert('ZWO : à jour\nCelestron : GoTo update dispo\nSky-Watcher : à jour\nAskar : à jour')">Vérifier</button></div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div class="sdot" style="background:var(--ok)"></div><span>ZWO</span><span class="bk ok" style="margin-left:auto">Vérifié</span></div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div class="sdot" style="background:var(--ok)"></div><span>Celestron</span><span class="bk ok" style="margin-left:auto">Vérifié</span></div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div class="sdot" style="background:var(--ok)"></div><span>Sky-Watcher</span><span class="bk ok" style="margin-left:auto">Vérifié</span></div>
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px"><div class="sdot" style="background:var(--ok)"></div><span>Askar</span><span class="bk ok" style="margin-left:auto">Vérifié</span></div>
+    </div>
+  </div>
+  <div class="fcp">Prometheus v6.4 · © 2026 Morpheus · Tous droits réservés<br>macOS · Windows · Android · iOS / iPadOS</div>
+</div>
+
+</div><!-- end content -->
+</div><!-- end main -->
+
+<!-- BOTTOM NAV -->
+<div class="botnav">
+  <div class="bni active" onclick="navBn('dash',this)"><div class="bni-ico">◉</div><span>Accueil</span></div>
+  <div class="bni" onclick="navBn('liveview',this)"><div class="bni-ico">▶</div><span>Live</span></div>
+  <div class="bni" onclick="navBn('net',this)"><div class="bni-ico">📡</div><span>Réseau</span></div>
+  <div class="bni" onclick="navBn('gps',this)"><div class="bni-ico">⊕</div><span>GPS</span></div>
+  <div class="bni" onclick="navBn('optique',this)"><div class="bni-ico">⊛</div><span>Optique</span></div>
+  <div class="bni" onclick="navBn('prise',this)"><div class="bni-ico">📷</div><span>Shoot</span></div>
+  <div class="bni" onclick="navBn('tableeq',this)"><div class="bni-ico">⊞</div><span>Table EQ</span></div>
+  <div class="bni" onclick="navBn('checklist',this)"><div class="bni-ico">☑</div><span>Check</span></div>
+  <div class="bni" onclick="navBn('myequip',this)"><div class="bni-ico">★</div><span>Mes équip.</span></div>
+  <div class="bni" onclick="moreMenu()"><div class="bni-ico">···</div><span>Plus</span></div>
+</div>
+
+</div><!-- end app -->
+
+<!-- MODAL RÉSEAU -->
+<div class="net-modal" id="net-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="net-card">
+    <div style="font-size:15px;font-weight:700;margin-bottom:3px">Connexion ASIAIR</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:14px" id="modal-net-status">Détection en cours…</div>
+
+    <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:8px">IP ASIAIR détectée / configurée</div>
+      <input type="text" id="modal-ip" value="Scan en cours…" style="margin-bottom:6px">
+      <div style="display:flex;gap:8px"><button class="btn btn-p" onclick="connectManualModal()" style="flex:1">Connecter</button><button class="btn" onclick="autoDetectModal()" style="flex:1" id="modal-scan-btn">🔍 Scanner</button></div>
+    </div>
+
+    <div id="modal-scan-result" style="display:none;margin-bottom:12px">
+      <div class="scan-grid" id="modal-scan-rows"></div>
+    </div>
+
+    <div style="background:rgba(29,158,117,.06);border:1px solid rgba(29,158,117,.2);border-radius:9px;padding:10px;margin-bottom:9px">
+      <div style="font-size:11px;font-weight:700;color:var(--ok);margin-bottom:4px">📡 Mode Box WiFi (recommandé)</div>
+      <div style="font-size:11px;color:var(--txt);line-height:1.7">iPad et ASIAIR sur le même réseau domestique → météo live + GPS.<br>IP dans l'app ASIAIR → ⚙ → Réseau.</div>
+    </div>
+    <div style="background:rgba(232,145,42,.06);border:1px solid rgba(232,145,42,.2);border-radius:9px;padding:10px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--acc);margin-bottom:4px">📶 Mode Hotspot ASIAIR direct</div>
+      <div style="font-size:11px;color:var(--txt);line-height:1.7">iPad sur réseau <code style="color:var(--acc)">ASIAIR_XXXXXX</code> → IP <code style="color:var(--acc)">192.168.1.1</code><br>Météo en cache · GPS iPad actif.</div>
+    </div>
+    <button class="btn" onclick="document.getElementById('net-modal').classList.remove('show')" style="width:100%">Fermer</button>
+  </div>
+</div>
+
+<!-- FULLSCREEN LIVE VIEW -->
+<div class="lv-fs" id="lv-fs">
+  <div class="lv-fs-main">
+    <canvas id="lv-fs-cv" width="1024" height="640" style="width:100%;height:100%;object-fit:contain;display:block"></canvas>
+    <canvas id="lv-fs-ov" width="1024" height="640" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
+    <div class="lv-fs-hud-top">
+      <span class="tag live" id="lv-fs-live">● LIVE PLEIN ÉCRAN</span>
+      <span class="tag" id="lv-fs-obj">M31 · L-Pro · 180s · #47</span>
+      <span class="tag ok" id="lv-fs-rms">RMS 0.48"</span>
+      <span class="tag bl" id="lv-fs-ccd">-15.2°C</span>
+      <span class="tag" id="lv-fs-hfr">HFR 1.79</span>
+      <span style="margin-left:auto"><span class="tag" id="lv-fs-clock">22:14:03</span></span>
+    </div>
+    <div class="lv-fs-hud-bot">
+      <div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <span class="tag ok" id="lv-fs-seq">47/120 · 39%</span>
+          <span class="tag">180s / pose</span>
+          <span class="tag">L-Pro CLS</span>
+          <span class="tag">NexStar 6SE · 945mm f/6.3</span>
+        </div>
+        <div style="width:min(380px,55vw);height:4px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden;margin-top:7px">
+          <div class="pf" id="lv-fs-bar" style="width:39%;background:var(--acc)"></div>
+        </div>
+      </div>
+      <button class="tag" style="margin-left:auto;cursor:pointer;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:5px 12px" onclick="closeFS()">✕ Fermer</button>
+    </div>
+  </div>
+  <div class="lv-fs-ctrl">
+    <button class="btn" id="lv-fs-play" onclick="toggleLive()" style="min-height:auto;padding:7px 13px">⏸ Pause</button>
+    <button class="btn" onclick="toggleGrid()" id="lv-fs-grid">Grille ●</button>
+    <button class="btn" onclick="toggleStretch()" id="lv-fs-str">Étirer ○</button>
+    <div style="flex:1"></div>
+    <div style="font-size:11px;color:var(--dim)">RA <span id="lv-fs-ra" style="color:#4a9eff">0.32"</span> · Dec <span id="lv-fs-dec" style="color:#e24b4a">0.35"</span> · RMS <span id="lv-fs-rms2" style="color:#fff;font-weight:700">0.48"</span></div>
+    <button class="btn btn-red" onclick="alert('Séquence stoppée')" style="min-height:auto;padding:7px 13px">⏹</button>
+  </div>
+</div>
+
+<script>
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');
+
+// ══════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════
+function nav(id,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sidenav .ni').forEach(n=>n.classList.remove('active'));
+  const p=document.getElementById('panel-'+id);if(p)p.classList.add('active');
+  if(el)el.classList.add('active');
+}
+function navBn(id,el){document.querySelectorAll('.bni').forEach(b=>b.classList.remove('active'));if(el)el.classList.add('active');nav(id);}
+function moreMenu(){
+  const its=['boussole','montures','meteo','catalogue','planif','ciel','polaire','collim','backfocus','eaf','eqp','dof','sigma','updates'];
+  const lb={boussole:'Boussole',montures:'Montures',meteo:'Météo',catalogue:'Catalogue',planif:'Planificateur',ciel:'Carte ciel',polaire:'Alignement pol.',collim:'Collimation',backfocus:'Back focus',eaf:'EAF Manuel',eqp:'Tensions',dof:'DOF',sigma:'3-Sigma',updates:'Mises à jour'};
+  const c=prompt('Aller à :\n'+its.map((k,i)=>(i+1)+'. '+lb[k]).join('\n')+'\n\nNuméro :');
+  if(c){const i=parseInt(c)-1;if(its[i])nav(its[i]);}
+}
+
+// ══════════════════════════════════════════════
+// DÉTECTION AUTOMATIQUE DU RÉSEAU
+// ══════════════════════════════════════════════
+let detectedIP=null;
+let netMode='unknown'; // 'box' | 'asiair' | 'unknown'
+
+// IPs candidates à scanner dans l'ordre de probabilité
+const CANDIDATE_IPS=[
+  '192.168.1.100','192.168.1.101','192.168.1.102','192.168.1.103','192.168.1.50',
+  '192.168.0.100','192.168.0.101','192.168.0.102','192.168.0.50',
+  '10.0.0.100','10.0.0.101','10.0.1.100',
+  '192.168.1.1'  // hotspot ASIAIR direct (toujours en dernier)
+];
+const ASIAIR_PORT=4400;
+
+// Détection automatique au démarrage
+async function autoDetectNetwork(){
+  U('lbl-net','Détection…');
+  U('sn-mode','Détection…');
+  U('sn-ip','Test réseau…');
+  pill('pill-net','scan');
+
+  // 1. Tester accès internet → détermine Box vs Hotspot ASIAIR
+  const hasInternet=await testInternet();
+  if(hasInternet){
+    netMode='box';
+    updateNetUI('Box WiFi détecté','Scan de l\'IP ASIAIR…','box');
+    await scanForASIAIR(false);
+  } else {
+    // Pas d'internet → probablement réseau ASIAIR direct
+    netMode='asiair';
+    detectedIP='192.168.1.1';
+    updateNetUI('Réseau ASIAIR direct','192.168.1.1:'+ASIAIR_PORT,'asiair');
+    showOfflineBanner();
+  }
+}
+
+async function testInternet(){
+  try{
+    // On essaie de charger l'image 1px la plus rapide
+    await Promise.race([
+      fetch('https://api.open-meteo.com/v1/forecast?latitude=49&longitude=6&hourly=temperature_2m&forecast_days=1&timezone=UTC').then(r=>r.ok),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),3500))
+    ]);
+    return true;
+  }catch(e){return false;}
+}
+
+async function scanForASIAIR(showLog=true){
+  const scanBtn=document.getElementById('scan-btn');
+  const rows=document.getElementById('scan-rows');
+  const log=document.getElementById('scan-log');
+  if(showLog&&log)log.style.display='block';
+  if(scanBtn)scanBtn.disabled=true;
+
+  let found=null;
+  for(const ip of CANDIDATE_IPS){
+    if(ip==='192.168.1.1'&&netMode==='box')continue; // skip hotspot IP si on est sur box
+    const row=addScanRow(ip,'testing',rows);
+    const ok=await pingASIAIR(ip);
+    if(ok){
+      row.className='scan-row found';
+      row.innerHTML=`<div class="sdot" style="background:var(--ok)"></div><span style="color:var(--ok);font-weight:700">${ip}:${ASIAIR_PORT}</span><span class="bk ok" style="margin-left:auto">ASIAIR trouvé !</span>`;
+      found=ip;break;
+    } else {
+      row.className='scan-row fail';
+      row.innerHTML=`<div class="sdot" style="background:var(--dim)"></div><span style="color:var(--dim)">${ip}</span><span style="margin-left:auto;font-size:9px;color:var(--dim)">—</span>`;
+    }
+    await sleep(80);
+  }
+
+  if(scanBtn)scanBtn.disabled=false;
+
+  if(found){
+    detectedIP=found;
+    updateNetUI('Box WiFi · ASIAIR trouvé',found+':'+ASIAIR_PORT,'box');
+    setResult(`✓ ASIAIR trouvé : ${found}:${ASIAIR_PORT}`,`Connecté · réseau Box WiFi · météo live disponible`,'found');
+    document.getElementById('manual-ip').value=found;
+    document.getElementById('modal-ip').value=found;
+    fetchMeteo();
+  } else {
+    setResult('ASIAIR non trouvé sur ce réseau','Essayer IP manuelle ou passer en mode hotspot ASIAIR direct','warn');
+    updateNetUI('Réseau Box · ASIAIR introuvable','Entrer l\'IP manuellement','warn');
+  }
+}
+
+async function pingASIAIR(ip){
+  // On utilise fetch avec une URL WebSocket transformée en HTTP pour un test rapide
+  // En pratique la connexion WebSocket nécessite JS ; on simule avec un timeout
+  try{
+    const ctrl=new AbortController();
+    setTimeout(()=>ctrl.abort(),800);
+    // Essai de connexion HTTP sur le port ASIAIR (va fail mais rapidement si port fermé)
+    await fetch(`http://${ip}:${ASIAIR_PORT}/`,{signal:ctrl.signal,mode:'no-cors'});
+    return true; // réponse reçue = quelque chose écoute
+  }catch(e){
+    // CORS error = host existe quand même → trouvé !
+    if(e.name!=='AbortError')return true;
+    return false;
+  }
+}
+
+function addScanRow(ip,state,container){
+  if(!container)return{className:'',innerHTML:''};
+  const d=document.createElement('div');
+  d.className='scan-row '+(state==='testing'?'testing':'');
+  d.innerHTML=`<div class="sdot d-scan"></div><span style="color:var(--info)">${ip}</span><span style="margin-left:auto;font-size:9px;color:var(--info)">test…</span>`;
+  container.appendChild(d);
+  return d;
+}
+
+function setResult(title,desc,state){
+  const t=document.getElementById('net-result-title');
+  const d=document.getElementById('net-result-desc');
+  const c=document.getElementById('net-detect-result');
+  if(t)t.textContent=title;if(d)d.textContent=desc;
+  if(c)c.style.borderColor=state==='found'?'rgba(29,158,117,.3)':'rgba(239,159,39,.3)';
+}
+
+function updateNetUI(mode,ip,state){
+  U('lbl-net',mode);U('sn-mode',mode);U('sn-ip',ip);U('d-ws-ip',ip);U('d-net-mode',mode);
+  pill('pill-net',state==='box'?'ok':state==='warn'?'warn':'acc');
+  const dot=document.getElementById('dot-net');
+  if(dot)dot.className='dot '+(state==='box'?'d-live':state==='warn'?'d-warn':'d-acc');
+  const sndot=document.getElementById('sn-dot');
+  if(sndot)sndot.className='dot '+(state==='box'?'d-live':state==='warn'?'d-warn':'d-acc');
+}
+
+function showOfflineBanner(){
+  const b=document.getElementById('meteo-offline-warn');if(b)b.style.display='block';
+  const note=document.getElementById('meteo-note');if(note)note.textContent='Réseau ASIAIR direct — météo en cache';
+}
+
+function openNetModal(){document.getElementById('net-modal').classList.add('show');}
+
+async function autoDetect(){
+  const rows=document.getElementById('scan-rows');if(rows)rows.innerHTML='';
+  document.getElementById('scan-log').style.display='block';
+  await scanForASIAIR(true);
+}
+
+async function autoDetectModal(){
+  const rows=document.getElementById('modal-scan-rows');if(rows)rows.innerHTML='';
+  document.getElementById('modal-scan-result').style.display='block';
+  const btn=document.getElementById('modal-scan-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Scan…';}
+  let found=null;
+  for(const ip of CANDIDATE_IPS){
+    const row=addScanRow(ip,'testing',rows);
+    const ok=await pingASIAIR(ip);
+    if(ok){row.className='scan-row found';row.innerHTML=`<div class="sdot" style="background:var(--ok)"></div><span style="color:var(--ok);font-weight:700">${ip}</span><span class="bk ok" style="margin-left:auto">ASIAIR !</span>`;found=ip;break;}
+    else{row.className='scan-row fail';row.innerHTML=`<div class="sdot" style="background:var(--dim)"></div><span style="color:var(--dim)">${ip}</span><span style="margin-left:auto;font-size:9px;color:var(--dim)">—</span>`;}
+    await sleep(80);
+  }
+  if(btn){btn.disabled=false;btn.textContent='🔍 Scanner';}
+  if(found){document.getElementById('modal-ip').value=found;detectedIP=found;updateNetUI('ASIAIR trouvé',found+':'+ASIAIR_PORT,'box');document.getElementById('modal-net-status').textContent='ASIAIR trouvé à '+found;}
+  else{document.getElementById('modal-net-status').textContent='Non trouvé — entrer l\'IP manuellement';}
+}
+
+function connectManual(){
+  const ip=document.getElementById('manual-ip')?.value||'192.168.1.100';
+  const port=document.getElementById('manual-port')?.value||4400;
+  detectedIP=ip;updateNetUI('Connexion manuelle',ip+':'+port,'box');
+  const pr=document.getElementById('ping-result');if(pr)pr.textContent='Connexion configurée sur '+ip+':'+port;
+}
+function connectManualModal(){
+  const ip=document.getElementById('modal-ip')?.value||'192.168.1.100';
+  detectedIP=ip;updateNetUI('Connexion manuelle',ip+':'+ASIAIR_PORT,'box');
+  document.getElementById('net-modal').classList.remove('show');
+}
+async function testPing(){
+  const ip=document.getElementById('manual-ip')?.value||'192.168.1.100';
+  const pr=document.getElementById('ping-result');if(pr)pr.textContent='Test '+ip+'…';
+  const ok=await pingASIAIR(ip);
+  if(pr)pr.textContent=ok?('✓ '+ip+' répond — ASIAIR accessible !'):('✗ '+ip+' inaccessible sur ce réseau');
+  if(pr)pr.style.color=ok?'var(--ok)':'var(--err)';
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ══════════════════════════════════════════════
+// LIVE VIEW — aperçu mixte
+// ══════════════════════════════════════════════
+let lvActive=true,lvGrid=true,lvStretch=false,lvFrame=0,lvPoses=47,lvTotal=120;
+const raH=[],decH=[];
+
+function renderFrame(cvId,ovId){
+  const cv=document.getElementById(cvId);if(!cv)return;
+  const W=cv.width,H=cv.height;const ctx=cv.getContext('2d');
+  lvFrame++;
+  ctx.fillStyle='#020608';ctx.fillRect(0,0,W,H);
+  const cx=W*.52,cy=H*.47;
+  const g1=ctx.createRadialGradient(cx,cy,0,cx,cy,W*.35);
+  g1.addColorStop(0,'rgba(165,182,255,.21)');g1.addColorStop(.3,'rgba(65,88,185,.11)');g1.addColorStop(.7,'rgba(32,48,128,.06)');g1.addColorStop(1,'transparent');
+  ctx.fillStyle=g1;ctx.fillRect(0,0,W,H);
+  const g2=ctx.createRadialGradient(cx,cy,0,cx,cy,W*.09);
+  g2.addColorStop(0,'rgba(255,252,228,.23)');g2.addColorStop(1,'transparent');
+  ctx.fillStyle=g2;ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(-.48);ctx.fillStyle='rgba(0,0,0,.13)';ctx.fillRect(-W*.28,-5,W*.56,10);ctx.restore();
+  for(let i=0;i<300;i++){const x=(Math.sin(i*17.3+lvFrame*.002)*0.5+0.5)*W;const y=(Math.cos(i*13.7+lvFrame*.0015)*0.5+0.5)*H;const sz=0.3+Math.abs(Math.sin(i*7.1))*1.0;const br=lvStretch?0.33+Math.abs(Math.sin(i*3.1))*0.43:0.17+Math.abs(Math.sin(i*3.1))*0.28;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fillStyle=i%5===0?`rgba(255,215,170,${br})`:`rgba(200,218,255,${br})`;ctx.fill();}
+  const ov=document.getElementById(ovId);if(!ov)return;
+  const octx=ov.getContext('2d');octx.clearRect(0,0,ov.width,ov.height);
+  if(lvGrid){octx.strokeStyle='rgba(255,255,255,.05)';octx.lineWidth=.5;for(let x=0;x<=W;x+=W/3){octx.beginPath();octx.moveTo(x,0);octx.lineTo(x,H);octx.stroke();}for(let y=0;y<=H;y+=H/3){octx.beginPath();octx.moveTo(0,y);octx.lineTo(W,y);octx.stroke();}}
+  octx.strokeStyle='rgba(255,220,0,.28)';octx.lineWidth=1;octx.beginPath();octx.moveTo(W/2-18,H/2);octx.lineTo(W/2+18,H/2);octx.moveTo(W/2,H/2-18);octx.lineTo(W/2,H/2+18);octx.stroke();octx.beginPath();octx.arc(W/2,H/2,30,0,Math.PI*2);octx.strokeStyle='rgba(255,220,0,.1)';octx.stroke();
+  const gx=W*.71,gy=H*.27;const rms=0.4+Math.sin(lvFrame*.08)*.09;const gc=rms<0.5?'rgba(29,158,117,.85)':'rgba(239,159,39,.85)';octx.strokeStyle=gc;octx.lineWidth=1.5;octx.beginPath();octx.arc(gx,gy,12,0,Math.PI*2);octx.stroke();octx.beginPath();octx.moveTo(gx-18,gy);octx.lineTo(gx-14,gy);octx.moveTo(gx+14,gy);octx.lineTo(gx+18,gy);octx.moveTo(gx,gy-18);octx.lineTo(gx,gy-14);octx.moveTo(gx,gy+14);octx.lineTo(gx,gy+18);octx.stroke();
+  const dx=Math.sin(lvFrame*.06)*7;const dy=Math.cos(lvFrame*.05)*4;octx.strokeStyle='rgba(232,145,42,.38)';octx.lineWidth=1;octx.strokeRect(W/2-28+dx,H/2-20+dy,56,40);
+  const rmsStr=rms.toFixed(2);const t=new Date();const ts=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')+':'+String(t.getSeconds()).padStart(2,'0');
+  const raV=(rms*.68*(Math.random()>.5?1:-1)).toFixed(2);const decV=(rms*.73*(Math.random()>.5?1:-1)).toFixed(2);
+  raH.push(parseFloat(raV));decH.push(parseFloat(decV));if(raH.length>60)raH.shift();if(decH.length>60)decH.shift();
+  const med=10500+lvFrame*42+Math.sin(lvFrame*.04)*2700;
+  const ccd=(-15+Math.sin(lvFrame*.014)*.4).toFixed(1);
+  const updates={
+    'lbl-rms':rmsStr+'"','d-rms':rmsStr+'"','sv-rms':rmsStr+'"','g-rms':rmsStr+'"',
+    'g-ra':raV+'"','g-dec':decV+'"','lv-fs-ra':raV+'"','lv-fs-dec':decV+'"','lv-fs-rms2':rmsStr+'"',
+    'sv-ccd':ccd+'°C','d-ccd':ccd+'°C','t-ccd':ccd+'°C',
+    'sv-med':Math.round(med).toLocaleString(),'h-med':Math.round(med).toLocaleString(),
+    'h-min':(260+lvFrame*4).toLocaleString(),'h-max':Math.min(61000,Math.round(med+30500)).toLocaleString(),
+    'h-r':Math.round(med-480).toLocaleString(),'h-g':Math.round(med+140).toLocaleString(),'h-b':Math.round(med-190).toLocaleString(),
+    'sv-snr':(14.5+lvFrame*.027).toFixed(1)+' dB',
+    'lv-fs-clock':ts,
+    'hfr-val':(1.77+Math.random()*.05).toFixed(2),'lv-fs-hfr':'HFR '+(1.77+Math.random()*.05).toFixed(2),
+    'dlv-rms':'RMS '+rmsStr+'"','dlv-ccd':ccd+'°C',
+    'lv-rms-tag':'RMS '+rmsStr+'"','lv-ccd-tag':ccd+'°C',
+    'lv-fs-rms':'RMS '+rmsStr+'"','lv-fs-ccd':ccd+'°C',
+  };
+  Object.entries(updates).forEach(([id,val])=>{const e=document.getElementById(id);if(e)e.textContent=val;});
+  drawHistogram(med);drawGuide();drawFocusCurve();
+}
+
+function drawHistogram(med){const cv=document.getElementById('hist-cv');if(!cv)return;const ctx=cv.getContext('2d');const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);const chs=[{c:'rgba(74,158,255,.6)',o:-430},{c:'rgba(29,158,117,.6)',o:80},{c:'rgba(226,75,74,.6)',o:-180},{c:'rgba(200,200,200,.3)',o:0}];chs.forEach(ch=>{ctx.beginPath();const p=med+ch.o;ctx.moveTo(0,H);for(let x=0;x<=W;x++){const v=(x/W)*65535;const y=H*.93*Math.exp(-Math.pow((v-p)/9100,2))*(0.72+Math.random()*.06);ctx.lineTo(x,H-y);}ctx.lineTo(W,H);ctx.closePath();ctx.fillStyle=ch.c;ctx.fill();});}
+
+function drawGuide(){const cv=document.getElementById('guide-cv');if(!cv)return;const ctx=cv.getContext('2d');const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);ctx.strokeStyle='rgba(255,255,255,.08)';ctx.lineWidth=.5;ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.stroke();[1.5,3].forEach(v=>{[H/2-v*H*.09,H/2+v*H*.09].forEach(y=>{ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();});});const dl=(a,col)=>{if(a.length<2)return;ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.beginPath();a.forEach((v,i)=>{const x=(i/59)*W;const y=H/2-v*(H*.083);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();};dl(raH,'rgba(74,158,255,.9)');dl(decH,'rgba(226,75,74,.9)');}
+
+function drawFocusCurve(){const cv=document.getElementById('focus-cv');if(!cv)return;const ctx=cv.getContext('2d');const W=cv.width,H=cv.height;ctx.clearRect(0,0,W,H);ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);const pts=[];for(let i=-14;i<=14;i++)pts.push({x:i,hfr:1.78+Math.pow(i*60/880,2)*1.4});ctx.strokeStyle='rgba(232,145,42,.7)';ctx.lineWidth=2;ctx.beginPath();pts.forEach((p,i)=>{const x=(i/pts.length)*W;const y=H-(p.hfr-1.4)/(3.4-1.4)*(H-8)-4;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});ctx.stroke();ctx.beginPath();ctx.arc((14/pts.length)*W,H-(pts[14].hfr-1.4)/(3.4-1.4)*(H-8)-4,5,0,Math.PI*2);ctx.fillStyle='#e8912a';ctx.fill();}
+
+let fsOpen=false;
+function openFS(){fsOpen=true;document.getElementById('lv-fs').classList.add('show');animFS();}
+function closeFS(){fsOpen=false;document.getElementById('lv-fs').classList.remove('show');}
+function animFS(){if(!fsOpen)return;renderFrame('lv-fs-cv','lv-fs-ov');requestAnimationFrame(animFS);}
+function toggleLive(){lvActive=!lvActive;['lv-play','lv-fs-play'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=lvActive?'⏸ Pause':'▶ Reprendre';});['lv-status','dlv-live','lv-fs-live'].forEach(id=>{const e=document.getElementById(id);if(e){e.textContent=lvActive?'● LIVE':'⏸ PAUSE';e.className='tag '+(lvActive?'live':'');}});}
+function toggleGrid(){lvGrid=!lvGrid;['lv-grid-btn','lv-fs-grid'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=lvGrid?'Grille ●':'Grille ○';});}
+function toggleStretch(){lvStretch=!lvStretch;['lv-str-btn','lv-fs-str'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=lvStretch?'Étirer ●':'Étirer ○';});}
+
+// ══════════════════════════════════════════════
+// SÉQUENCE
+// ══════════════════════════════════════════════
+function updateSeq(){if(!lvActive)return;if(Math.random()<0.008&&lvPoses<lvTotal)lvPoses++;const pct=Math.round(lvPoses/lvTotal*100);const rem=Math.round((lvTotal-lvPoses)*3);const h=Math.floor(rem/60);const m=rem%60;const rs=h+'h '+String(m).padStart(2,'0')+'m';const now=new Date();const eMin=now.getHours()*60+now.getMinutes()+rem;const et=Math.floor(eMin/60%24)+'h '+String(eMin%60).padStart(2,'0')+'m';
+const upd={
+  'sess-prog':lvPoses+'/'+lvTotal,'seq-pct':pct+'%','seq-count':lvPoses+' / '+lvTotal+' poses',
+  'seq-rem':rs,'sess-rem':rs+' · fin '+et,'seq-end':et,'d-end':et,
+  'd-curexp':'180s · #'+lvPoses+' · L-Pro',
+  'dlv-seq':lvPoses+'/'+lvTotal+' · '+pct+'%','lv-seq-tag':lvPoses+'/'+lvTotal+' · '+pct+'%','lv-fs-seq':lvPoses+'/'+lvTotal+' · '+pct+'%',
+  'dlv-obj':'M31 · 180s · #'+lvPoses,'lv-obj-tag':'M31 · L-Pro · 180s · #'+lvPoses,'lv-fs-obj':'M31 · L-Pro · 180s · #'+lvPoses,
+};
+Object.entries(upd).forEach(([id,val])=>{const e=document.getElementById(id);if(e)e.textContent=val;});
+['seq-bar','sess-bar','lv-fs-bar'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.width=pct+'%';});}
+
+// ══════════════════════════════════════════════
+// GPS
+// ══════════════════════════════════════════════
+let curLat=49.36,curLon=6.20;
+const PRESETS=[{n:'Yutz',la:49.36,lo:6.20},{n:'Paris',la:48.87,lo:2.35},{n:'Marseille',la:43.30,lo:5.37},{n:'Montréal',la:45.50,lo:-73.57},{n:'New York',la:40.71,lo:-74.01},{n:'Tokyo',la:35.68,lo:139.69},{n:'Sydney',la:-33.87,lo:151.21},{n:'São Paulo',la:-23.55,lo:-46.63},{n:'Le Cap',la:-33.93,lo:18.42},{n:'Dubai',la:25.20,lo:55.27},{n:'Reykjavik',la:64.13,lo:-21.82},{n:'Nairobi',la:-1.29,lo:36.82}];
+function buildPresets(){const el=document.getElementById('gps-presets');if(!el)return;PRESETS.forEach(p=>{const b=document.createElement('button');b.className='btn';b.style.cssText='flex:none;padding:7px 10px;font-size:11px;min-height:38px';b.textContent=p.n;b.onclick=()=>{curLat=p.la;curLon=p.lo;const ll=document.getElementById('loc-lat');if(ll)ll.value=p.la;const lo=document.getElementById('loc-lon');if(lo)lo.value=p.lo;const ln=document.getElementById('loc-name');if(ln)ln.value=p.n;updateDerived();};el.appendChild(b);});}
+function useRealGPS(){if(!navigator.geolocation){alert('GPS non disponible');return;}const dot=document.getElementById('gps-dot');if(dot)dot.style.background='var(--warn)';U('gps-st','Acquisition GPS…');navigator.geolocation.getCurrentPosition(pos=>{curLat=pos.coords.latitude;curLon=pos.coords.longitude;if(dot)dot.style.background='var(--ok)';U('gps-st','GPS fixé · précision '+Math.round(pos.coords.accuracy)+'m');U('gps-lat',toDMS(curLat,'lat'));U('gps-lon',toDMS(curLon,'lon'));U('gps-alt',pos.coords.altitude?Math.round(pos.coords.altitude)+'m':'184m');U('d-gps',Math.abs(curLat).toFixed(2)+'°'+(curLat>=0?'N':'S'));U('lbl-gps','GPS ✓');updateDerived();fetchMeteo();},err=>{if(dot)dot.style.background='var(--err)';U('gps-st','Erreur : '+err.message);},{enableHighAccuracy:true,timeout:15000,maximumAge:60000});}
+function manualGPS(){curLat=parseFloat(document.getElementById('loc-lat')?.value)||49.36;curLon=parseFloat(document.getElementById('loc-lon')?.value)||6.20;updateDerived();}
+function updateDerived(){const pol=Math.abs(curLat).toFixed(1);U('gps-pol',pol+'° = latitude site');U('gps-lst',calcLST(curLon));const ta=document.getElementById('teq-lat');if(ta)ta.textContent=pol+'° '+(curLat>=0?'N':'S');const da=document.getElementById('teq-axis');if(da)da.textContent=pol+'°';U('dash-loc',(document.getElementById('loc-name')?.value||'Yutz')+' · '+Math.abs(curLat).toFixed(2)+'°'+(curLat>=0?'N':'S'));calcTeq();drawSky();}
+function toDMS(v,t){const a=Math.abs(v);const d=Math.floor(a);const mf=(a-d)*60;const m=Math.floor(mf);const s=Math.round((mf-m)*60);return d+'° '+m+"' "+s+'" '+(t==='lat'?(v>=0?'N':'S'):(v>=0?'E':'W'));}
+function calcLST(lon){const j=(Date.now()-new Date('2000-01-01T12:00:00Z'))/86400000;const lst=((280.46061837+360.98564736629*j+lon)%360+360)%360;const h=Math.floor(lst/15);const m=Math.floor((lst/15-h)*60);const s=Math.round(((lst/15-h)*60-m)*60);return h+'h '+String(m).padStart(2,'0')+'m '+String(s).padStart(2,'0')+'s';}
+
+// ══════════════════════════════════════════════
+// BOUSSOLE
+// ══════════════════════════════════════════════
+function startCompass(){if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function'){DeviceOrientationEvent.requestPermission().then(s=>{if(s==='granted')listenCompass();else alert('Permission refusée → Réglages → Safari → Mouvement & orientation');});}else if(window.DeviceOrientationEvent){listenCompass();}else{let a=0;setInterval(()=>{a=(a+1.2)%360;drawCompass(a);},50);}}
+function listenCompass(){window.addEventListener('deviceorientation',e=>{const h=e.webkitCompassHeading||(e.alpha?(360-e.alpha):0);drawCompass(h);const bv=e.beta||0;const gv=e.gamma||0;U('inc-x',bv.toFixed(1)+'°');U('inc-y',gv.toFixed(1)+'°');const ok=Math.abs(bv)<5&&Math.abs(gv)<5;const is=document.getElementById('inc-status');if(is){is.textContent=ok?'Horizontal ✓':'Incliner';is.className='bk '+(ok?'ok':'warn');}},true);}
+function drawCompass(angle){const ca=((angle%360)+360)%360;const cv=document.getElementById('comp-cv');if(!cv)return;const ctx=cv.getContext('2d');const W=220,H=220,cx=110,cy=110,r=98;ctx.clearRect(0,0,W,H);const dk=window.matchMedia('(prefers-color-scheme:dark)').matches;ctx.strokeStyle=dk?'rgba(255,255,255,.12)':'rgba(0,0,0,.1)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(cx,cy,r-14,0,Math.PI*2);ctx.stroke();['N','NE','E','SE','S','SO','O','NO'].forEach((d,i)=>{const a=i*Math.PI/4-Math.PI/2;const maj=i%2===0;ctx.beginPath();ctx.moveTo(cx+(r-3)*Math.cos(a),cy+(r-3)*Math.sin(a));ctx.lineTo(cx+(r-13)*Math.cos(a),cy+(r-13)*Math.sin(a));ctx.strokeStyle=d==='N'?'#e24b4a':(dk?'rgba(255,255,255,.4)':'rgba(0,0,0,.35)');ctx.lineWidth=maj?2.5:1;ctx.stroke();if(maj){ctx.fillStyle=d==='N'?'#e24b4a':(dk?'rgba(255,255,255,.7)':'rgba(0,0,0,.6)');ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(d,cx+(r-26)*Math.cos(a),cy+(r-26)*Math.sin(a));}});const an=(ca-90)*Math.PI/180;ctx.beginPath();ctx.moveTo(cx+70*Math.cos(an),cy+70*Math.sin(an));ctx.lineTo(cx+14*Math.cos(an+Math.PI/2),cy+14*Math.sin(an+Math.PI/2));ctx.lineTo(cx+14*Math.cos(an-Math.PI/2),cy+14*Math.sin(an-Math.PI/2));ctx.closePath();ctx.fillStyle='#e8912a';ctx.fill();const ab=an+Math.PI;ctx.beginPath();ctx.moveTo(cx+70*Math.cos(ab),cy+70*Math.sin(ab));ctx.lineTo(cx+11*Math.cos(ab+Math.PI/2),cy+11*Math.sin(ab+Math.PI/2));ctx.lineTo(cx+11*Math.cos(ab-Math.PI/2),cy+11*Math.sin(ab-Math.PI/2));ctx.closePath();ctx.fillStyle=dk?'rgba(255,255,255,.2)':'rgba(0,0,0,.15)';ctx.fill();ctx.beginPath();ctx.arc(cx,cy,8,0,Math.PI*2);ctx.fillStyle=dk?'#1c2333':'#fff';ctx.fill();const d16=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];['comp-deg','c-mag'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=Math.round(ca)+'°';});U('comp-dir',d16[Math.round(ca/22.5)%16]);U('c-geo',((ca+2.1)%360).toFixed(1)+'°');}
+
+// ══════════════════════════════════════════════
+// TABLE EQ
+// ══════════════════════════════════════════════
+const TEQS=['Monter le NexStar 6SE sur la plateforme EQ','Orienter la base vers le Nord géographique (boussole iPad)','Incliner l\'axe polaire à la latitude GPS','Régler l\'azimut horizontal (vis de la table)','Brancher le moteur sidéral (86 164 s/tour)','Allumer le NexStar 6SE — GoTo démarre normalement','Pointer Polaris pour vérifier l\'alignement polaire','Aligner 2 étoiles avec le GoTo (comme d\'habitude)','Vérifier la dérive sur étoile après 5–10 min'];
+let teqIdx=-1;
+function buildTeqSteps(){const el=document.getElementById('teq-steps');if(!el)return;el.innerHTML='';TEQS.forEach((s,i)=>{const d=document.createElement('div');d.className='ck-item';d.innerHTML=`<div id="ti${i}" style="width:22px;height:22px;border-radius:50%;background:var(--bg2);color:var(--dim);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;transition:all .3s">${i+1}</div><span id="tt${i}" style="font-size:12px;color:var(--txt);flex:1">${s}</span>`;el.appendChild(d);});}
+function teqNext(){teqIdx++;if(teqIdx>=TEQS.length)return;for(let i=0;i<=teqIdx;i++){const ic=document.getElementById('ti'+i);const tx=document.getElementById('tt'+i);if(ic){ic.style.background='rgba(29,158,117,.2)';ic.style.color='var(--ok)';ic.textContent='✓';}if(tx)tx.style.textDecoration='line-through';}}
+function teqReset(){teqIdx=-1;buildTeqSteps();}
+function calcTeq(){const lat=Math.abs(curLat);const mass=parseFloat(document.getElementById('teq-mass')?.value||12);const dur=parseFloat(document.getElementById('teq-dur')?.value||60);const tp=document.getElementById('teq-type')?.value||'platform';const r=tp==='platform'?Math.round(150+mass*11.6):Math.round(200+mass*7.4);const drift=(dur/60*0.25).toFixed(2);U('teq-axis',lat.toFixed(1)+'°');const tl=document.getElementById('teq-lat');if(tl)tl.textContent=lat.toFixed(1)+'° '+(curLat>=0?'N':'S');U('teq-r',r+' mm');const td=document.getElementById('teq-drift');if(td){td.textContent=drift+'° / '+dur+'min';td.style.color=parseFloat(drift)<0.5?'var(--ok)':'var(--warn)';}}
+
+// ══════════════════════════════════════════════
+// MONTURES
+// ══════════════════════════════════════════════
+function selMount(){const v=document.getElementById('mount-sel')?.value||'NexStar 6SE|Altaz fourche|GoTo|5';const p=v.split('|');U('mount-name',p[0]);U('mount-type',p[1]);U('mount-goto',p[2]);U('mount-load',(p[3]||'—')+' kg');U('d-scope',p[0]);}
+
+// ══════════════════════════════════════════════
+// OPTIQUE
+// ══════════════════════════════════════════════
+function calcOpt(){const sv=document.getElementById('opt-scope')?.value||'1500|10|NexStar 6SE';const sp=sv.split('|');const natF=parseFloat(sp[0]);const natFn=parseFloat(sp[1]);const scopeName=sp[2]||'Tube';const factor=parseFloat(document.getElementById('opt-corr')?.value||0.63);const camV=document.getElementById('opt-cam')?.value||'3.76|26.1|4.2|ASI2600MC Pro';const cp=camV.split('|');const pix=parseFloat(cp[0]);const sw=parseFloat(cp[1]);const sh=parseFloat(cp[2]||4.2);const camName=cp[3]||'Caméra';const eff=Math.round(natF*factor);const efn=(natFn*factor).toFixed(1);U('opt-focal',eff+'mm');U('opt-fnum','f/'+efn);U('opt-scale',(pix/eff*206.265).toFixed(2)+'"/px');U('opt-fov',(sw/eff*57.296).toFixed(2)+'°×'+(sh/eff*57.296).toFixed(2)+'°');U('opt-desc',scopeName+(factor!==1?' + ×'+factor:'')+' + '+camName);U('d-feff',eff+'mm f/'+efn);U('d-corr',factor===1?'Aucun':'Réducteur ×'+factor);}
+
+// ══════════════════════════════════════════════
+// MÉTÉO
+// ══════════════════════════════════════════════
+function buildMeteoSlots(data){const el=document.getElementById('meteo-slots');if(!el)return;el.innerHTML='';const times=data?.hourly?.time||[];const temps=data?.hourly?.temperature_2m||[];const clouds=data?.hourly?.cloudcover||[];const now=new Date().getHours();const rel=times.map((t,i)=>({h:parseInt(t.slice(11,13)),temp:temps[i]||0,cloud:clouds[i]||0})).filter(s=>s.h>=now&&s.h<=now+8).slice(0,8);if(!rel.length){[20,21,22,23,0,1,2,3].forEach(h=>{const s=(h>=22&&h<=1?1.8+Math.random()*.6:3+Math.random()).toFixed(1);const best=parseFloat(s)<2.5;const d=document.createElement('div');d.className='ms'+(best?' best':'');d.innerHTML=`<div style="font-size:9px;color:${best?'var(--acc)':'var(--dim)'}">${h}h${best?' ★':''}</div><div style="font-size:14px;margin:2px 0">✦</div><div style="font-size:11px;font-weight:600">—</div><div style="font-size:9px;color:${parseFloat(s)<2.5?'var(--ok)':parseFloat(s)<3.5?'var(--warn)':'var(--err)'}">${s}"</div>`;el.appendChild(d);});return;}rel.forEach(s=>{const best=s.cloud<20;const d=document.createElement('div');d.className='ms'+(best?' best':'');d.innerHTML=`<div style="font-size:9px;color:${best?'var(--acc)':'var(--dim)'}">${s.h}h${best?' ★':''}</div><div style="font-size:14px;margin:2px 0">${s.cloud<10?'✦':s.cloud<40?'⛅':'☁'}</div><div style="font-size:11px;font-weight:600">${Math.round(s.temp)}°C</div><div style="font-size:9px;color:${s.cloud<20?'var(--ok)':s.cloud<60?'var(--warn)':'var(--err)'}">☁${Math.round(s.cloud)}%</div>`;el.appendChild(d);});}
+async function fetchMeteo(){try{const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${curLat.toFixed(4)}&longitude=${curLon.toFixed(4)}&hourly=temperature_2m,cloudcover,windspeed_10m&timezone=auto&forecast_days=1`);const data=await r.json();buildMeteoSlots(data);const isOffline=r.headers?.get('X-Offline')==='1';const banner=document.getElementById('meteo-offline-warn');if(banner)banner.style.display=(isOffline||netMode==='asiair')?'block':'none';if(data.hourly?.temperature_2m){const nowH=new Date().getHours();const idx=data.hourly.time?.findIndex(t=>parseInt(t.slice(11,13))===nowH);if(idx>=0){U('met-temp',Math.round(data.hourly.temperature_2m[idx])+'°C');U('met-wind',Math.round(data.hourly.windspeed_10m[idx])+' km/h');}}}catch(e){buildMeteoSlots(null);}}
+
+// ══════════════════════════════════════════════
+// PRISE DE VUE
+// ══════════════════════════════════════════════
+const PV={M31:{exp:180,iso:'800',nb:80,note:'Galaxie — f/10 → ISO 800 optimal'},M42:{exp:90,iso:'800',nb:100,note:'Nébuleuse brillante — courtes poses'},M57:{exp:60,iso:'400',nb:120,note:'Nébuleuse planétaire — résolution parfaite SCT 150mm'},M13:{exp:120,iso:'400',nb:80,note:'Amas globulaire — résolution maximale'},Saturn:{exp:0.05,iso:'400',nb:1000,note:'Planétaire — vidéo Lucky imaging · Barlow ×2.5 recommandé'},Jupiter:{exp:0.033,iso:'200',nb:2000,note:'Planétaire — vidéo haute cadence · Barlow ×2–3'},Mars:{exp:0.05,iso:'200',nb:1500,note:'Planétaire — variable selon distance'},NGC891:{exp:240,iso:'1600',nb:60,note:'Galaxie profil — longues poses nécessaires'},IC434:{exp:300,iso:'3200',nb:40,note:'Ha — filtre H-Alpha 7nm quasi obligatoire'},M45:{exp:90,iso:'400',nb:50,note:'Pléiades — réducteur 0.63× recommandé'},M51:{exp:180,iso:'1600',nb:80,note:'Galaxie Tourbillon — bon objet au NexStar 6SE'}};
+function calcPV(){const obj=document.getElementById('pv-obj')?.value||'M31';const cls=document.getElementById('pv-cls')?.value||'cls';const bor=parseInt(document.getElementById('pv-bor')?.value||6);const o=PV[obj]||PV.M31;let exp=o.exp,nb=o.nb,iso=o.iso;const isPlan=obj==='Saturn'||obj==='Jupiter'||obj==='Mars';if(!isPlan){if(bor>=7){exp=Math.min(exp*1.3,600);nb=Math.round(nb*1.2);}if(cls==='cls'){exp=Math.round(exp*1.4);nb=Math.round(nb*1.5);}else if(cls==='ha'){exp=Math.min(600,Math.round(exp*3));nb=Math.round(nb*.7);iso='3200';}else if(cls==='oiii'||cls==='sii'){exp=Math.min(600,Math.round(exp*3));iso='3200';}}U('pv-exp',isPlan?(exp<1?(exp*1000).toFixed(0)+'ms':exp+' s'):Math.round(exp)+' s');U('pv-iso','ISO '+iso);U('pv-nb',Math.round(nb));const tot=Math.round(exp*nb/60);U('pv-total',Math.floor(tot/60)+'h '+String(tot%60).padStart(2,'0')+'m');U('pv-ttl',obj+' · '+(cls==='none'?'Sans filtre':cls.toUpperCase())+' · Bortle '+bor);const clsT={none:'Sans filtre',cls:'CLS/L-Pro : +40% durée · Bortle 4–7 idéal',ha:'H-Alpha 7nm : fond quasi nul',oiii:'OIII 7nm',sii:'SII 7nm'};U('pv-note',isPlan?'Mode vidéo Lucky imaging':clsT[cls]);U('pv-scope',o.note||'');}
+
+// ══════════════════════════════════════════════
+// CATALOGUE
+// ══════════════════════════════════════════════
+const CAT_BASE=[{n:'M31',d:'Galaxie Andromède',t:'GAL',mag:3.4,alt:42},{n:'M42',d:'Nébuleuse Orion',t:'NEB',mag:4.0,alt:28},{n:'M45',d:'Pléiades',t:'OC',mag:1.6,alt:55},{n:'M33',d:'Galaxie Triangle',t:'GAL',mag:5.7,alt:48},{n:'M1',d:'Nébuleuse Crabe',t:'SNR',mag:8.4,alt:40},{n:'NGC 891',d:'Galaxie profil',t:'GAL',mag:9.9,alt:62},{n:'NGC 869',d:'Double Amas h Persée',t:'OC',mag:4.3,alt:60},{n:'IC 434',d:'Tête de Cheval Ha',t:'NEB',mag:6.8,alt:26},{n:'M57',d:'Nébuleuse Lyre',t:'NEB',mag:8.8,alt:18},{n:'M13',d:'Amas Hercule',t:'GC',mag:5.8,alt:52},{n:'M51',d:'Galaxies Tourbillon',t:'GAL',mag:8.4,alt:40},{n:'NGC 7331',d:'Galaxie Pégase',t:'GAL',mag:9.5,alt:44},{n:'IC 1805',d:'Nébuleuse Cœur',t:'NEB',mag:6.5,alt:52},{n:'NGC 2244',d:'Nébuleuse Rosette',t:'NEB',mag:4.8,alt:35},{n:'M81',d:'Galaxie Bode',t:'GAL',mag:6.9,alt:46},{n:'NGC 1499',d:'Nébuleuse Californie',t:'NEB',mag:6.0,alt:44}];
+let catCustom=[];
+const TC={GAL:'#7eb8f7',NEB:'#f7a07e',OC:'#f7e07e',GC:'#b07ef7',SNR:'#f77e7e',PERSO:'#e8912a'};
+function fCat(){const q=(document.getElementById('cs')?.value||'').toLowerCase();const ty=document.getElementById('ct2')?.value||'';const list=document.getElementById('cat-list');if(!list)return;list.innerHTML='';[...CAT_BASE,...catCustom].filter(o=>(q===''||o.n.toLowerCase().includes(q)||o.d.toLowerCase().includes(q))&&(ty===''||o.t===ty)).forEach(o=>{const d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:7px;padding:10px 12px;border-bottom:1px solid var(--brd);cursor:pointer;min-height:46px;font-size:12px';d.innerHTML=`<span style="width:70px;font-weight:700;color:var(--txt)">${o.n}</span><span style="flex:1;color:var(--dim)">${o.d}</span><span style="font-size:9px;padding:2px 5px;border-radius:3px;background:${TC[o.t]||'#ccc'}22;color:${TC[o.t]||'#888'}">${o.t}</span><span style="width:38px;text-align:right;color:${o.alt>=30?'var(--ok)':'var(--warn)'}">${o.alt}°</span>`;list.appendChild(d);});U('cat-cnt',catCustom.length.toString());}
+function showAdd(){const e=document.getElementById('add-cat-f');if(e)e.style.display=e.style.display==='none'?'block':'none';}
+function addCat(){const n=document.getElementById('ac-n')?.value||'Objet';const d2=document.getElementById('ac-d')?.value||'';const t=document.getElementById('ac-t')?.value||'PERSO';const mag=parseFloat(document.getElementById('ac-mag')?.value||9);catCustom.push({n,d:d2,t,mag,alt:Math.round(20+Math.random()*60)});document.getElementById('add-cat-f').style.display='none';fCat();alert('"'+n+'" ajouté !');}
+
+// ══════════════════════════════════════════════
+// PLANIFICATEUR
+// ══════════════════════════════════════════════
+const PLAN=[{n:'M45',t:'21h45',dur:45,c:'#f7e07e'},{n:'NGC 869/884',t:'22h30',dur:60,c:'#b07ef7'},{n:'M31',t:'23h30',dur:90,c:'#7eb8f7'},{n:'NGC 891',t:'01h00',dur:50,c:'#7ef7aa'},{n:'M42',t:'01h50',dur:30,c:'#f7a07e'},{n:'IC 434',t:'02h20',dur:30,c:'#f77e7e'}];
+function buildPlan(){const el=document.getElementById('plan-list');if(!el)return;const tot=8*60+30,sm=21*60+45;PLAN.forEach(o=>{const p=o.t.split('h');const s=parseInt(p[0])*60+parseInt(p[1]);const op=((s-sm)/tot)*100,dp=(o.dur/tot)*100;const d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--brd)';d.innerHTML=`<span style="width:92px;font-size:12px;font-weight:700">${o.n}</span><span style="width:40px;font-size:10px;color:var(--dim)">${o.t}</span><div style="flex:1;height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;position:relative"><div style="position:absolute;height:100%;left:${op.toFixed(1)}%;width:${dp.toFixed(1)}%;background:${o.c}88;border:1px solid ${o.c};border-radius:4px"></div></div><span style="width:34px;font-size:10px;color:var(--dim);text-align:right">${o.dur}m</span>`;el.appendChild(d);});}
+function updPark(){const m=document.getElementById('park-mode')?.value;const msgs={manual:'Manuel','end':'Auto · fin séquence','time':'Auto · heure','dawn':'Auto · aube astronomique'};U('park-s',msgs[m]||'');}
+
+// ══════════════════════════════════════════════
+// CARTE DU CIEL
+// ══════════════════════════════════════════════
+let skyT=22;
+const SKY=[{n:'M31',ra:10.7,dec:41.3,t:'gal',mag:3.4},{n:'M33',ra:23.5,dec:30.7,t:'gal',mag:5.7},{n:'NGC 891',ra:35.6,dec:42.3,t:'gal',mag:9.9},{n:'M42',ra:83.8,dec:-5.4,t:'neb',mag:4.0},{n:'M45',ra:56.9,dec:24.1,t:'oc',mag:1.6},{n:'NGC 869',ra:34.8,dec:57.1,t:'oc',mag:4.3},{n:'M57',ra:283.4,dec:33.0,t:'neb',mag:8.8},{n:'M13',ra:250.4,dec:36.5,t:'oc',mag:5.8},{n:'M51',ra:202.5,dec:47.2,t:'gal',mag:8.4},{n:'NGC 7331',ra:339.3,dec:34.4,t:'gal',mag:9.5}];
+function updSky(){const t=parseFloat(document.getElementById('sky-t')?.value||22);skyT=t<24?t:t-24;const h=Math.floor(t<24?t:t-24);const m=Math.round((t%1)*60);U('sky-tv',h+'h'+String(m).padStart(2,'0'));drawSky();}
+function rDXY(ra,dec,W,H,t,lat){const lR=lat*Math.PI/180;const lst=((t*15+180)%360+360)%360;const ha=((lst-ra)%360+360)%360;const haR=ha*Math.PI/180,dR=dec*Math.PI/180;const sinA=Math.sin(dR)*Math.sin(lR)+Math.cos(dR)*Math.cos(lR)*Math.cos(haR);const alt=Math.asin(Math.max(-1,Math.min(1,sinA)))*180/Math.PI;if(alt<3)return null;const cAz=(Math.sin(dR)-Math.sin(lR)*sinA)/(Math.cos(lR)*Math.cos(Math.asin(sinA)));const azO=Math.acos(Math.max(-1,Math.min(1,cAz)))*180/Math.PI;const fAz=Math.sin(haR)>0?360-azO:azO;const r=(90-alt)/90;const theta=(fAz-180)*Math.PI/180;const maxR=Math.min(W,H)/2-12;return{x:W/2+maxR*r*Math.sin(theta),y:H/2-maxR*r*Math.cos(theta)};}
+function drawSky(){const cv=document.getElementById('sky-cv');if(!cv)return;const ctx=cv.getContext('2d');const W=cv.width,H=cv.height;ctx.fillStyle='#060911';ctx.beginPath();ctx.ellipse(W/2,H/2,W/2-2,H/2-2,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(80,120,180,.18)';ctx.lineWidth=.5;[.25,.5,.75,1].forEach(r=>{ctx.beginPath();ctx.ellipse(W/2,H/2,(W/2-2)*r,(H/2-2)*r,0,0,Math.PI*2);ctx.stroke();});['N','E','S','O'].forEach((l,i)=>{const a=i*Math.PI/2,r=Math.min(W,H)/2-8;ctx.fillStyle='rgba(140,170,210,.7)';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(l,W/2+r*Math.sin(a),H/2-r*Math.cos(a));});for(let i=0;i<70;i++){const x=Math.random()*W,y=Math.random()*H;if(Math.sqrt((x-W/2)**2+(y-H/2)**2)>Math.min(W,H)/2-4)continue;ctx.beginPath();ctx.arc(x,y,.5+Math.random()*.6,0,Math.PI*2);ctx.fillStyle=`rgba(255,255,240,${.15+Math.random()*.3})`;ctx.fill();}const OC={gal:'#7eb8f7',neb:'#f7a07e',oc:'#f7e07e'};SKY.forEach(o=>{const p=rDXY(o.ra,o.dec,W,H,skyT,curLat);if(!p)return;const c=OC[o.t]||'#ccc';const sz=Math.max(3,7-o.mag*.3);ctx.beginPath();if(o.t==='gal')ctx.ellipse(p.x,p.y,sz*1.4,sz*.7,.5,0,Math.PI*2);else ctx.arc(p.x,p.y,sz,0,Math.PI*2);ctx.strokeStyle=c;ctx.lineWidth=1;ctx.stroke();ctx.fillStyle=c+'55';ctx.fill();ctx.fillStyle=c;ctx.font='9px sans-serif';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(o.n,p.x+sz+2,p.y-4);});}
+
+// ══════════════════════════════════════════════
+// EAF
+// ══════════════════════════════════════════════
+let eafPos=28450,eafMems=[];
+function eafMove(n){eafPos=Math.max(0,Math.min(99999,eafPos+n));U('eaf-pos',eafPos.toLocaleString());U('eaf-hfr',(1.78+Math.abs(eafPos-28440)/5000).toFixed(2));U('d-eaf',eafPos.toLocaleString());}
+function eafGoto(){eafPos=parseInt(document.getElementById('eaf-goto-v')?.value||28450);U('eaf-pos',eafPos.toLocaleString());}
+function eafAuto(){U('eaf-pos','Recherche…');setTimeout(()=>{eafPos=28432+Math.round(Math.random()*24);U('eaf-pos',eafPos.toLocaleString());U('eaf-hfr','1.78');U('d-eaf',eafPos.toLocaleString());},1200);}
+function eafSave(){eafMems.push({pos:eafPos,t:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})});const el=document.getElementById('eaf-mems');if(el){el.innerHTML='';eafMems.slice(-3).forEach(m=>{const d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg2);border-radius:7px;font-size:12px';d.innerHTML=`<span style="color:var(--acc);font-weight:700">${m.pos.toLocaleString()}</span><span style="color:var(--dim);margin-left:auto">${m.t}</span>`;el.appendChild(d);});}}
+
+// ══════════════════════════════════════════════
+// ALIGNEMENT POLAIRE
+// ══════════════════════════════════════════════
+function updPol(){const az=parseInt(document.getElementById('pol-az')?.value||18);const alt=parseInt(document.getElementById('pol-alt')?.value||9);U('pol-azv',az+'"');U('pol-altv',alt+'"');const tot=Math.sqrt(az*az+alt*alt);U('pol-tot',tot.toFixed(1)+'"');U('pol-amin',(tot/60).toFixed(2)+"'");U('pol-deg',(tot/3600).toFixed(4)+'°');const ev=document.getElementById('pol-eval');if(ev){ev.className='bk '+(tot<30?'ok':tot<60?'warn':'err');ev.textContent=tot<30?'Excellent (<30")':tot<60?'Acceptable (<60")':'À corriger';}}
+
+// ══════════════════════════════════════════════
+// TENSIONS
+// ══════════════════════════════════════════════
+const VOLTS=[{n:'12V monture NexStar',v:12.1,mx:13.5,w:11.5},{n:'USB caméra ASI2600',v:5.02,mx:5.5,w:4.8},{n:'Résistance chauffante obj.',v:9.4,mx:12,w:8},{n:'EAF ZWO',v:4.93,mx:5.5,w:4.7},{n:'ASIAIR Plus 12V',v:12.3,mx:13.5,w:11}];
+function buildVolts(){const el=document.getElementById('volt-list');if(!el)return;VOLTS.forEach(v=>{const ok=v.v>=v.w;const pct=Math.round((v.v/v.mx)*100);const bg=ok?'var(--ok)':'var(--err)';const d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--brd);min-height:44px';d.innerHTML=`<div class="sdot" style="background:${bg}"></div><span style="flex:1;font-size:12px;color:var(--txt)">${v.n}</span><div class="vbar"><div class="vfill" style="width:${pct}%;background:${bg}"></div></div><span style="font-size:12px;font-weight:700;min-width:42px;text-align:right">${v.v.toFixed(2)} V</span>`;el.appendChild(d);});}
+function updBat(){const v=parseInt(document.getElementById('bat-sl')?.value||84);const bg=v>50?'var(--ok)':v>25?'var(--warn)':'var(--err)';const bar=document.getElementById('bat-bar');if(bar){bar.style.width=v+'%';bar.style.background=bg;}['bat-pct','bat-lbl','lbl-bat','d-bat'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=v+'%';});const db=document.getElementById('d-bat-b');if(db){db.style.width=v+'%';db.style.background=bg;}}
+
+// ══════════════════════════════════════════════
+// COLLIMATION
+// ══════════════════════════════════════════════
+function drawC(){const cx2=parseInt(document.getElementById('ccx')?.value||5);const cy2=parseInt(document.getElementById('ccy')?.value||-8);U('vcx',cx2.toString());U('vcy',cy2.toString());const cv=document.getElementById('col-cv');if(!cv)return;const ctx=cv.getContext('2d');const W=160,H=160,x0=80,y0=80;ctx.clearRect(0,0,W,H);const dk=window.matchMedia('(prefers-color-scheme:dark)').matches;ctx.fillStyle=dk?'#0d0d0d':'#e8e8e8';ctx.beginPath();ctx.arc(x0,y0,75,0,Math.PI*2);ctx.fill();const ox=cx2*.5,oy=cy2*.5;[58,40,24,12].forEach((r,i)=>{ctx.beginPath();ctx.arc(x0+ox*(i/4),y0+oy*(i/4),r,0,Math.PI*2);ctx.strokeStyle=dk?`rgba(180,210,255,${.25+i*.16})`:`rgba(40,70,140,${.25+i*.16})`;ctx.lineWidth=1.5;ctx.stroke();});const d2=Math.sqrt(cx2*cx2+cy2*cy2);ctx.fillStyle=d2<8?'#1d9e75':'#e24b4a';ctx.beginPath();ctx.arc(x0+ox*.05,y0+oy*.05,4,0,Math.PI*2);ctx.fill();const st=document.getElementById('cs2');if(st)st.innerHTML=d2<8?'<span class="bk ok">Collimation correcte</span>':'<span class="bk warn">Ajustement requis</span>';}
+
+// ══════════════════════════════════════════════
+// BACK FOCUS
+// ══════════════════════════════════════════════
+function calcBF(){const sc=document.getElementById('bf-sc')?.value||'105|NexStar 6SE + réducteur 0.63×';const sp=sc.split('|');const target=parseFloat(sp[0]);const cam=parseFloat(document.getElementById('bf-cm')?.value||17.5);const ext=parseFloat(document.getElementById('bf-ex')?.value||0);const tot=cam+ext;const diff=tot-target;const ok=Math.abs(diff)<5;U('bf-res',tot.toFixed(1)+' mm');const st=document.getElementById('bf-st');if(st)st.innerHTML='<span class="bk '+(ok?'ok':diff<0?'warn':'err')+'">'+(ok?'Correct':diff<0?'Court — ajouter +'+Math.abs(diff).toFixed(1)+'mm':'Long — retirer '+diff.toFixed(1)+'mm')+'</span>';U('bf-note',sp[1]||'');}
+
+// ══════════════════════════════════════════════
+// 3-SIGMA
+// ══════════════════════════════════════════════
+function updSig(){const k=parseFloat(document.getElementById('kappa')?.value||3);const n=parseInt(document.getElementById('nf')?.value||47);U('vk',k.toFixed(1));U('vn',n.toString());const r=Math.max(0,Math.round(n*(0.05+(3-k)*.03)));const s=(Math.log10((n-r)/(n||1)+.5)*2+.3).toFixed(1);U('sr',r.toString());U('sk',(n-r).toString());U('ss','+'+s+' dB');}
+
+// ══════════════════════════════════════════════
+// CHECKLIST
+// ══════════════════════════════════════════════
+const CK=[{l:'Météo vérifiée',s:'Seeing < 3" · pas de nuages · vent OK'},{l:'GPS iPad fixé',s:'Position réelle acquise · LST calculée'},{l:'Optique configurée',s:'NexStar 6SE + réducteur 0.63× · back focus OK'},{l:'Batterie & câblage',s:'Batterie > 70% · 12V · résistances chauffantes'},{l:'Monture sous tension',s:'NexStar 6SE · GoTo initialisé'},{l:'Table EQ alignée',s:'Axe polaire = latitude GPS · moteur ON'},{l:'Connexion ASIAIR',s:'WiFi WebSocket actif · IP configurée'},{l:'Alignement polaire',s:'Erreur < 30" · PAA validé'},{l:'EAF — mise au point',s:'HFR optimal · compensation thermique'},{l:'Guidage PHD2',s:'RMS < 0.6" · calibration · étoile guide OK'},{l:'Live View actif',s:'Aperçu image · histogramme · guidage live'}];
+let ckS=[];
+function initCk(){ckS=CK.map(c=>({...c,status:'pending'}));ckS[0].status='done';ckS[1].status='done';renderCk();}
+function renderCk(){const el=document.getElementById('ck-list');if(!el)return;el.innerHTML='';ckS.forEach((c,i)=>{const d=document.createElement('div');d.className='ck-item';const ok=c.status==='done';const act=c.status==='active';d.innerHTML=`<div style="width:22px;height:22px;border-radius:50%;background:${ok?'rgba(29,158,117,.2)':act?'rgba(232,145,42,.2)':'var(--bg2)'};color:${ok?'var(--ok)':act?'var(--acc)':'var(--dim)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;transition:all .3s">${ok?'✓':act?'…':(i+1)}</div><div style="flex:1"><div style="font-size:13px;color:${ok?'var(--dim)':'var(--txt)'};${ok?'text-decoration:line-through':''}">${c.l}</div><div style="font-size:11px;color:var(--dim)">${c.s}</div></div><span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:${ok?'rgba(29,158,117,.15)':act?'rgba(232,145,42,.15)':'var(--bg2)'};color:${ok?'var(--ok)':act?'var(--acc)':'var(--dim)'}">${ok?'✓ OK':act?'…':'Attente'}</span>`;el.appendChild(d);});const all=ckS.every(c=>c.status==='done');document.getElementById('bon-ciel').style.display=all?'block':'none';renderCkMini();}
+function renderCkMini(){const el=document.getElementById('ck-mini');if(!el)return;const done=ckS.filter(c=>c.status==='done').length;const pct=Math.round(done/ckS.length*100);el.innerHTML=`<div style="display:flex;align-items:center;gap:10px"><div style="flex:1;height:6px;background:var(--bg2);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;background:${done===ckS.length?'var(--ok)':'var(--acc)'};width:${pct}%;transition:width .4s"></div></div><span style="font-size:11px;font-weight:700;color:${done===ckS.length?'var(--ok)':'var(--acc)'}">${done}/${ckS.length}</span><span class="bk ${done===ckS.length?'ok':'warn'}">${done===ckS.length?'Prêt ✦':'En cours'}</span></div>`;}
+function ckNext(){const i=ckS.findIndex(c=>c.status==='pending');if(i<0)return;ckS[i].status='active';renderCk();setTimeout(()=>{ckS[i].status='done';renderCk();},600);}
+function ckReset(){ckS.forEach(c=>c.status='pending');ckS[0].status='done';ckS[1].status='done';renderCk();}
+function ckAll(){let i=0;const iv=setInterval(()=>{if(i>=ckS.length){clearInterval(iv);return;}ckS[i].status='done';renderCk();i++;},280);}
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+function U(id,val){const e=document.getElementById(id);if(e)e.textContent=val;}
+function pill(id,cls){const e=document.getElementById(id);if(e){e.className='pill';if(cls)e.classList.add(cls);}}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  buildPresets();buildTeqSteps();buildVolts();fCat();buildPlan();
+  calcOpt();calcBF();calcPV();calcTeq();selMount();updPol();initCk();updPark();
+  buildMeteoSlots(null);drawSky();drawC();drawCompass(347);
+  buildDynFields();renderEquipList();buildEquipStats();
+  useRealGPS();
+  // Rendu initial des canvas live
+  renderFrame('dash-cv','dash-ov');
+  renderFrame('lv-cv','lv-ov');
+  // Boucle toutes les 1.8s
+  setInterval(()=>{
+    if(lvActive){lvFrame++;renderFrame('dash-cv','dash-ov');renderFrame('lv-cv','lv-ov');}
+    updateSeq();updateDerived();
+    VOLTS.forEach(v=>{v.v=Math.max(v.w*.9,Math.min(v.mx,v.v+(Math.random()*.04-.02)));});
+  },1800);
+  // Détection réseau automatique après 1.5s (le temps que l'UI soit prête)
+  setTimeout(autoDetectNetwork,1500);
+  // Re-détection toutes les 2 minutes (basculement automatique Box ↔ Hotspot)
+  setInterval(async()=>{const ok=await testInternet();const newMode=ok?'box':'asiair';if(newMode!==netMode){netMode=newMode;if(newMode==='asiair'){showOfflineBanner();updateNetUI('Réseau ASIAIR direct','192.168.1.1:'+ASIAIR_PORT,'asiair');}else{const banner=document.getElementById('meteo-offline-warn');if(banner)banner.style.display='none';fetchMeteo();if(detectedIP)updateNetUI('Box WiFi · ASIAIR',detectedIP+':'+ASIAIR_PORT,'box');}}},120000);
+});
+
+// ══ GESTIONNAIRE ÉQUIPEMENTS PERSONNALISÉS ══
+// © 2026 Morpheus
+let myEquip = JSON.parse(localStorage.getItem('prom_equip') || '[]');
+let efEditId = null, eqFilterCat = 'all';
+
+const EQ_ICONS = {scope:'🔭',camera:'📷',apn:'📸',mount:'⚙️',guide:'🎯',corrector:'🔬',accessory:'🔧'};
+const EQ_LABELS = {scope:'Tube',camera:'Caméra',apn:'APN',mount:'Monture',guide:'Guidage',corrector:'Correcteur',accessory:'Accessoire'};
+
+const EQ_FIELDS = {
+  scope:[
+    {k:'focal',l:'Focale (mm)',t:'number',p:'ex: 1500'},
+    {k:'aperture',l:'Diamètre (mm)',t:'number',p:'ex: 150'},
+    {k:'fratio',l:'Rapport f/',t:'number',p:'ex: 10'},
+    {k:'opttype',l:'Type optique',t:'sel',o:['Réfracteur','Newton','SCT','Mak','Cassegrain','RC','Dobson','Fait maison','Autre']},
+  ],
+  camera:[
+    {k:'pixel',l:'Pixel (µm)',t:'number',p:'ex: 3.76'},
+    {k:'sw',l:'Capteur largeur (mm)',t:'number',p:'ex: 26.1'},
+    {k:'sh',l:'Capteur hauteur (mm)',t:'number',p:'ex: 17.4'},
+    {k:'color',l:'Type',t:'sel',o:['Couleur','Mono']},
+    {k:'cooling',l:'Refroidissement',t:'sel',o:['Oui','Non']},
+  ],
+  apn:[
+    {k:'pixel',l:'Pixel (µm)',t:'number',p:'ex: 5.72'},
+    {k:'sw',l:'Capteur largeur (mm)',t:'number',p:'ex: 35.9'},
+    {k:'sh',l:'Capteur hauteur (mm)',t:'number',p:'ex: 24'},
+    {k:'modha',l:'Modifié Ha',t:'sel',o:['Non','Oui']},
+  ],
+  mount:[
+    {k:'payload',l:'Charge max (kg)',t:'number',p:'ex: 14'},
+    {k:'mtype',l:'Type',t:'sel',o:['EQ allemande','Altazimutale','Fourche','Harmonic Drive','Dobson','EQ nomade','Fait maison','Autre']},
+    {k:'goto',l:'GoTo',t:'sel',o:['Oui','Non','Partiel']},
+    {k:'motor',l:'Motorisation',t:'sel',o:['2 axes','1 axe RA','Non motorisée']},
+  ],
+  guide:[
+    {k:'focal',l:'Focale guide (mm)',t:'number',p:'ex: 240'},
+    {k:'aperture',l:'Diamètre (mm)',t:'number',p:'ex: 60'},
+    {k:'campix',l:'Pixel cam. guide (µm)',t:'number',p:'ex: 2.9'},
+    {k:'camw',l:'Largeur capteur (mm)',t:'number',p:'ex: 4.8'},
+  ],
+  corrector:[
+    {k:'factor',l:'Facteur (ex: 0.63)',t:'number',p:'ex: 0.63'},
+    {k:'compat',l:'Compatible avec',t:'text',p:'ex: SCT f/10, Newton…'},
+  ],
+  accessory:[
+    {k:'acctype',l:'Type',t:'sel',o:['Filtre','EAF','Flat panel','Roue à filtres','Diviseur de champ','Résistance chauffante','Chercheur','Oculaire','Autre']},
+    {k:'detail',l:'Détail',t:'text',p:'ex: H-Alpha 7nm, 2"…'},
+  ],
+};
+
+function buildDynFields(){
+  const cat = document.getElementById('ef-cat')?.value || 'scope';
+  const el = document.getElementById('ef-dyn'); if(!el) return;
+  el.innerHTML = '';
+  const fields = EQ_FIELDS[cat] || [];
+  let row = null;
+  fields.forEach((f,i) => {
+    if(i%2===0){ row = document.createElement('div'); row.style.cssText='display:flex;gap:8px;margin-bottom:9px;flex-wrap:wrap'; el.appendChild(row); }
+    const wrap = document.createElement('div'); wrap.style.cssText='flex:1;min-width:120px';
+    const lbl = document.createElement('div'); lbl.style.cssText='font-size:11px;color:var(--dim);margin-bottom:4px'; lbl.textContent=f.l; wrap.appendChild(lbl);
+    let inp;
+    if(f.t==='sel'){
+      inp = document.createElement('select'); inp.id='ef-'+f.k; inp.style.width='100%';
+      f.o.forEach(o=>{ const op=document.createElement('option'); op.value=o; op.textContent=o; inp.appendChild(op); });
+    } else {
+      inp = document.createElement('input'); inp.type=f.t||'text'; inp.id='ef-'+f.k;
+      inp.placeholder=f.p||''; inp.style.width='100%';
+    }
+    wrap.appendChild(inp); row.appendChild(wrap);
+  });
+}
+
+function showEquipForm(id){
+  efEditId = id || null;
+  const fw = document.getElementById('equip-form-wrap'); if(!fw) return;
+  fw.style.display = 'block';
+  document.getElementById('ef-title').textContent = id ? 'Modifier l'équipement' : 'Ajouter un équipement';
+  document.getElementById('ef-del').style.display = id ? 'inline-block' : 'none';
+  if(id){
+    const e = myEquip.find(x=>x.id===id); if(!e) return;
+    const s = id => { const el=document.getElementById(id); if(el) return el; };
+    if(s('ef-name')) s('ef-name').value = e.name;
+    if(s('ef-cat'))  s('ef-cat').value  = e.cat;
+    if(s('ef-brand'))  s('ef-brand').value  = e.brand||'';
+    if(s('ef-serial')) s('ef-serial').value = e.serial||'';
+    if(s('ef-notes'))  s('ef-notes').value  = e.notes||'';
+    buildDynFields();
+    (EQ_FIELDS[e.cat]||[]).forEach(f=>{ const el=document.getElementById('ef-'+f.k); if(el&&e[f.k]!==undefined) el.value=e[f.k]; });
+  } else {
+    ['ef-name','ef-brand','ef-serial','ef-notes'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    buildDynFields();
+  }
+  fw.scrollIntoView({behavior:'smooth'});
+}
+
+function saveEquip(){
+  const name = document.getElementById('ef-name')?.value?.trim();
+  if(!name){ alert('La désignation est obligatoire.'); return; }
+  const cat = document.getElementById('ef-cat')?.value || 'scope';
+  const specs = {};
+  (EQ_FIELDS[cat]||[]).forEach(f=>{ const el=document.getElementById('ef-'+f.k); if(el) specs[f.k]=el.value; });
+  const e = {
+    id: efEditId || (Date.now().toString(36)+Math.random().toString(36).slice(2,5)),
+    name, cat,
+    brand: document.getElementById('ef-brand')?.value || '',
+    serial: document.getElementById('ef-serial')?.value || '',
+    notes: document.getElementById('ef-notes')?.value || '',
+    custom: true,
+    addedAt: efEditId ? (myEquip.find(x=>x.id===efEditId)?.addedAt) : new Date().toISOString(),
+    ...specs
+  };
+  if(efEditId){ const idx=myEquip.findIndex(x=>x.id===efEditId); if(idx>=0) myEquip[idx]=e; }
+  else myEquip.push(e);
+  localStorage.setItem('prom_equip', JSON.stringify(myEquip));
+  cancelEquipForm(); renderEquipList(); buildEquipStats();
+  alert('"'+name+'" enregistré !');
+}
+
+function deleteEquip(){
+  if(!efEditId) return;
+  const e = myEquip.find(x=>x.id===efEditId); if(!e) return;
+  if(!confirm('Supprimer "'+e.name+'" définitivement ?')) return;
+  myEquip = myEquip.filter(x=>x.id!==efEditId);
+  localStorage.setItem('prom_equip', JSON.stringify(myEquip));
+  cancelEquipForm(); renderEquipList(); buildEquipStats();
+}
+
+function cancelEquipForm(){ efEditId=null; const f=document.getElementById('equip-form-wrap'); if(f) f.style.display='none'; }
+
+function equipFilter(cat, el){
+  eqFilterCat = cat;
+  document.querySelectorAll('#eq-cat-btns button').forEach(b=>{ b.style.background='var(--bg2)'; b.style.color='var(--txt)'; b.style.borderColor='var(--brd)'; });
+  if(el){ el.style.background='var(--acc)'; el.style.color='#fff'; el.style.borderColor='var(--acc)'; }
+  renderEquipList();
+}
+
+function renderEquipList(){
+  const el = document.getElementById('equip-list'); if(!el) return;
+  const q = (document.getElementById('equip-search')?.value||'').toLowerCase();
+  const list = myEquip.filter(e=>{
+    if(eqFilterCat!=='all' && e.cat!==eqFilterCat) return false;
+    if(q && !e.name.toLowerCase().includes(q) && !(e.brand||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  el.innerHTML = '';
+  if(!list.length){
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--dim);font-size:12px">Aucun équipement'+(eqFilterCat!=='all'?' dans cette catégorie':'')+'. Cliquez sur "+ Ajouter" pour commencer.<br><br>Prometheus inclut déjà les références les plus courantes dans les listes de sélection — ajoutez ici vos instruments personnalisés, prototypes, ou équipements atypiques.</div>';
+    U('equip-count','0'); return;
+  }
+  U('equip-count', list.length+' équipement'+(list.length>1?'s':''));
+  list.forEach(e=>{
+    const specs = buildSpecsSummary(e);
+    const d = document.createElement('div');
+    d.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--brd);min-height:58px';
+    d.innerHTML = '<div style="font-size:20px;flex-shrink:0">'+(EQ_ICONS[e.cat]||'🔧')+'</div>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--txt)">'+e.name+'</div>'
+      +'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+(e.brand?e.brand+' · ':'')+EQ_LABELS[e.cat]+(specs?' · '+specs:'')+'</div>'
+      +(e.notes?'<div style="font-size:10px;color:var(--dim);font-style:italic;margin-top:2px">'+e.notes+'</div>':'')
+      +'</div><span style="font-size:9px;padding:1px 7px;border-radius:3px;background:rgba(232,145,42,.15);color:#e8912a;flex-shrink:0">Perso.</span>'
+      +'<button onclick="showEquipForm(''+e.id+'')" style="padding:7px 12px;border:1px solid var(--brd);border-radius:7px;background:var(--bg2);color:var(--txt);font-size:11px;cursor:pointer;min-height:40px;-webkit-appearance:none;flex-shrink:0">Éditer</button>';
+    el.appendChild(d);
+  });
+}
+
+function buildSpecsSummary(e){
+  if(e.cat==='scope') return [e.focal?e.focal+'mm':'', e.aperture?e.aperture+'mm diam.':'', e.fratio?'f/'+e.fratio:''].filter(Boolean).join(' · ');
+  if(e.cat==='camera'||e.cat==='apn') return [e.pixel?e.pixel+'µm':'', e.sw&&e.sh?e.sw+'×'+e.sh+'mm':'', e.color||''].filter(Boolean).join(' · ');
+  if(e.cat==='mount') return [e.mtype||'', e.payload?e.payload+' kg':'', e.goto?'GoTo:'+e.goto:''].filter(Boolean).join(' · ');
+  if(e.cat==='guide') return [e.focal?e.focal+'mm':'', e.aperture?e.aperture+'mm':''].filter(Boolean).join(' · ');
+  if(e.cat==='corrector') return e.factor?'×'+e.factor:'';
+  return e.detail || e.acctype || '';
+}
+
+function buildEquipStats(){
+  const el = document.getElementById('equip-stats'); if(!el) return;
+  el.innerHTML = '';
+  const cats = ['scope','camera','mount','guide'];
+  cats.forEach(c=>{
+    const n = myEquip.filter(e=>e.cat===c).length;
+    const d = document.createElement('div');
+    d.className='card'; d.style.cssText='text-align:center;cursor:pointer;padding:9px';
+    d.onclick = ()=>{ const b=document.getElementById('ecb-'+c); equipFilter(c,b); };
+    d.innerHTML = '<div style="font-size:18px;margin-bottom:3px">'+EQ_ICONS[c]+'</div>'
+      +'<div style="font-size:18px;font-weight:700;color:'+(n>0?'var(--acc)':'var(--dim)')+'">'+n+'</div>'
+      +'<div style="font-size:9px;color:var(--dim)">'+EQ_LABELS[c]+'</div>';
+    el.appendChild(d);
+  });
+  const total = myEquip.length;
+  const d = document.createElement('div');
+  d.className='card'; d.style.cssText='text-align:center;padding:9px';
+  d.innerHTML = '<div style="font-size:18px;margin-bottom:3px">★</div>'
+    +'<div style="font-size:18px;font-weight:700;color:var(--acc)">'+total+'</div>'
+    +'<div style="font-size:9px;color:var(--dim)">Total perso.</div>';
+  el.appendChild(d);
+}
+
+function exportEquip(){
+  const data = { version:'6.4', date:new Date().toISOString(), equipments:myEquip };
+  if(window.prometheus?.exportConfig){
+    window.prometheus.exportConfig(data).then(r=>{ if(r.ok) alert('Exporté : '+r.filePath); });
+  } else {
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'prometheus-equipements-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+  }
+}
+
+function importEquip(){
+  if(window.prometheus?.importConfig){
+    window.prometheus.importConfig().then(r=>{
+      if(r.ok&&r.data&&r.data.equipments){
+        const added = r.data.equipments.filter(e=>!myEquip.find(x=>x.id===e.id));
+        myEquip = [...myEquip, ...added];
+        localStorage.setItem('prom_equip',JSON.stringify(myEquip));
+        renderEquipList(); buildEquipStats();
+        alert(added.length+' équipement(s) importé(s) !');
+      }
+    });
+  } else {
+    const inp = document.createElement('input'); inp.type='file'; inp.accept='.json';
+    inp.onchange = e=>{
+      const f=e.target.files[0]; if(!f) return;
+      const reader=new FileReader();
+      reader.onload = ev=>{
+        try{
+          const data = JSON.parse(ev.target.result);
+          if(!data.equipments) throw new Error('Format invalide');
+          const added = data.equipments.filter(e=>!myEquip.find(x=>x.id===e.id));
+          myEquip = [...myEquip, ...added];
+          localStorage.setItem('prom_equip',JSON.stringify(myEquip));
+          renderEquipList(); buildEquipStats();
+          alert(added.length+' équipement(s) importé(s) !');
+        }catch(err){ alert('Erreur : '+err.message); }
+      };
+      reader.readAsText(f);
+    };
+    inp.click();
+  }
+}
+</script>
+</body>
+</html>

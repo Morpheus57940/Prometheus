@@ -1,0 +1,20 @@
+{
+  "name": "Prometheus Astrophoto",
+  "short_name": "Prometheus",
+  "description": "v6.4 — Nec plus ultra — © 2026 Morpheus",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d1117",
+  "theme_color": "#e8912a",
+  "lang": "fr",
+  "icons": [
+    {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ],
+  "shortcuts": [
+    {"name":"Live View","url":"./index.html","description":"Aperçu image live"},
+    {"name":"Mes équipements","url":"./index.html","description":"Gestionnaire équipements"},
+    {"name":"GPS","url":"./index.html","description":"Localisation iPad"}
+  ]
+}

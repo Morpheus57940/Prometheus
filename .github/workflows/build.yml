@@ -1,0 +1,146 @@
+# Prometheus — CI/CD Build automatique
+# Déclenché par : git tag v*.*.*
+# Produit : .exe setup + portable (Windows), .dmg arm64+x64 (macOS), GitHub Pages (iPad PWA)
+# © 2026 Morpheus
+
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  # ── BUILD WINDOWS (setup .exe + portable .exe) ──
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows (Setup + Portable)
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            dist/*.exe
+            dist/latest.yml
+
+  # ── BUILD macOS (DMG arm64 + x64) ──
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS (DMG arm64 + x64)
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pour signer : ajouter CSC_LINK et CSC_KEY_PASSWORD dans les secrets GitHub
+          # CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
+          # CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-builds
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/latest-mac.yml
+
+  # ── GITHUB PAGES (PWA iPad / Android) ──
+  deploy-pwa:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload PWA to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # ── RELEASE GitHub ──
+  create-release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows builds
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-builds
+          path: dist-release/
+
+      - name: Download macOS builds
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-builds
+          path: dist-release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Prometheus ${{ github.ref_name }}"
+          body: |
+            ## Prometheus ${{ github.ref_name }} — © 2026 Morpheus
+
+            ### Téléchargements
+
+            | Plateforme | Fichier | Notes |
+            |---|---|---|
+            | Windows | `Prometheus-Setup-*.exe` | Installeur NSIS (recommandé) |
+            | Windows | `Prometheus-*-Portable.exe` | Sans installation |
+            | macOS Apple Silicon | `Prometheus-*-arm64.dmg` | M1/M2/M3/M4 |
+            | macOS Intel | `Prometheus-*-x64.dmg` | Intel Mac |
+            | iPad / iOS | 🌐 [Ouvrir la PWA](https://${{ github.repository_owner }}.github.io/prometheus/) | Safari → Partager → Sur l'écran d'accueil |
+            | Android | 🌐 [Ouvrir la PWA](https://${{ github.repository_owner }}.github.io/prometheus/) | Chrome → Installer |
+
+            ### Nouveautés v6.4
+            - ★ Gestionnaire d'équipements personnalisés (tubes, caméras, APN, montures, lunettes de guidage, correcteurs, accessoires)
+            - Import/Export JSON — synchronisation entre appareils
+            - Carte du ciel HD avec Goto confirmation
+            - Planificateur avec Goto ASIAIR + Plate Solve
+            - Réglages manuels complets prise de vue (curseurs + saisie exacte)
+            - GPS avec lieux nommés sauvegardés
+            - Stockage dual SSD/SD ASIAIR
+            - Détection automatique réseau Box WiFi / Hotspot ASIAIR
+
+            ---
+            Application astrophotographie NexStar 6SE · ASIAIR · iPad · Windows · macOS
+          files: dist-release/*
+          token: ${{ secrets.GITHUB_TOKEN }}

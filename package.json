@@ -1,0 +1,110 @@
+{
+  "name": "prometheus-astro",
+  "productName": "Prometheus",
+  "version": "6.4.0",
+  "description": "Application astrophotographie — NexStar 6SE · ASIAIR · iPad · Windows · macOS",
+  "author": {
+    "name": "Morpheus",
+    "email": "contact@morpheus-astro.fr"
+  },
+  "copyright": "© 2026 Morpheus — Tous droits réservés",
+  "license": "SEE LICENSE IN LICENSE",
+  "main": "src/main.js",
+  "scripts": {
+    "start":        "electron .",
+    "dev":          "electron . --dev",
+    "build:win":    "electron-builder --win --x64",
+    "build:win-portable": "electron-builder --win portable --x64",
+    "build:mac":    "electron-builder --mac --arm64 --x64",
+    "build:linux":  "electron-builder --linux AppImage deb --x64",
+    "build:all":    "electron-builder --win --mac --linux --x64",
+    "pack":         "electron-builder --dir",
+    "postinstall":  "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "ws": "^8.17.0",
+    "serialport": "^12.0.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.0"
+  },
+  "build": {
+    "appId": "fr.morpheus.prometheus-astro",
+    "productName": "Prometheus",
+    "copyright": "© 2026 Morpheus",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**",
+      "public/**",
+      "node_modules/**",
+      "!node_modules/.cache"
+    ],
+    "extraResources": [
+      { "from": "public", "to": "public" }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis",     "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.ico",
+      "publisherName": "Morpheus"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Prometheus",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "language": "1036",
+      "include": "scripts/installer.nsh"
+    },
+    "portable": {
+      "artifactName": "Prometheus-${version}-Portable.exe"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg",  "arch": ["arm64", "x64"] },
+        { "target": "zip",  "arch": ["arm64", "x64"] }
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.utilities",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Prometheus utilise la caméra pour la collimation.",
+        "NSLocationWhenInUseUsageDescription": "Prometheus utilise le GPS pour les calculs astronomiques."
+      }
+    },
+    "dmg": {
+      "title": "Prometheus ${version}",
+      "icon": "assets/icon.icns",
+      "background": "assets/dmg-background.png",
+      "window": { "width": 600, "height": 380 },
+      "contents": [
+        { "x": 180, "y": 190, "type": "file"    },
+        { "x": 420, "y": 190, "type": "link", "path": "/Applications" }
+      ]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon":  "assets/icons",
+      "category": "Science"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "morpheus-astro",
+      "repo": "prometheus"
+    }
+  }
+}
