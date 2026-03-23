@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#e8912a">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<title>Prometheus v6.3</title>
+<title>Prometheus v6.4</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
@@ -999,7 +999,7 @@ input[type=number]{width:auto}
 <!-- MISES À JOUR -->
 <div class="panel" id="panel-updates">
   <div class="pt">Mises à jour</div>
-  <div class="g2"><div class="card"><div class="ct">Prometheus</div><div style="font-size:20px;font-weight:700">v6.3</div><span class="bk ok">À jour</span></div><div class="card"><div class="ct">ASIAIR</div><div style="font-size:20px;font-weight:700">v2.4</div><span class="bk ok">À jour</span></div></div>
+  <div class="g2"><div class="card"><div class="ct">Prometheus</div><div style="font-size:20px;font-weight:700">v6.4</div><span class="bk ok">À jour</span></div><div class="card"><div class="ct">ASIAIR</div><div style="font-size:20px;font-weight:700">v2.4</div><span class="bk ok">À jour</span></div></div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px"><div class="ct" style="margin:0">Vérification auto · toutes 6h</div><button class="btn" style="min-height:auto;padding:6px 10px;font-size:11px" onclick="alert('ZWO : à jour\nCelestron : GoTo update dispo\nSky-Watcher : à jour\nAskar : à jour')">Vérifier</button></div>
     <div style="display:flex;flex-direction:column;gap:7px">
@@ -1134,10 +1134,11 @@ const ASIAIR_PORT=4400;
 
 // Détection automatique au démarrage
 async function autoDetectNetwork(){
-  U('lbl-net','Détection…');
-  U('sn-mode','Détection…');
-  U('sn-ip','Test réseau…');
-  pill('pill-net','scan');
+  // L'UI est déjà disponible — cette fonction tourne en arrière-plan
+  U('lbl-net','Sans ASIAIR');
+  U('sn-mode','Non connecté');
+  U('sn-ip','Cliquer 📡 pour connecter');
+  pill('pill-net','');
 
   // 1. Tester accès internet → détermine Box vs Hotspot ASIAIR
   const hasInternet=await testInternet();
@@ -1409,7 +1410,12 @@ function selMount(){const v=document.getElementById('mount-sel')?.value||'NexSta
 // ══════════════════════════════════════════════
 // OPTIQUE
 // ══════════════════════════════════════════════
-function calcOpt(){const sv=document.getElementById('opt-scope')?.value||'1500|10|NexStar 6SE';const sp=sv.split('|');const natF=parseFloat(sp[0]);const natFn=parseFloat(sp[1]);const scopeName=sp[2]||'Tube';const factor=parseFloat(document.getElementById('opt-corr')?.value||0.63);const camV=document.getElementById('opt-cam')?.value||'3.76|26.1|4.2|ASI2600MC Pro';const cp=camV.split('|');const pix=parseFloat(cp[0]);const sw=parseFloat(cp[1]);const sh=parseFloat(cp[2]||4.2);const camName=cp[3]||'Caméra';const eff=Math.round(natF*factor);const efn=(natFn*factor).toFixed(1);U('opt-focal',eff+'mm');U('opt-fnum','f/'+efn);U('opt-scale',(pix/eff*206.265).toFixed(2)+'"/px');U('opt-fov',(sw/eff*57.296).toFixed(2)+'°×'+(sh/eff*57.296).toFixed(2)+'°');U('opt-desc',scopeName+(factor!==1?' + ×'+factor:'')+' + '+camName);U('d-feff',eff+'mm f/'+efn);U('d-corr',factor===1?'Aucun':'Réducteur ×'+factor);}
+function calcOpt(){const sv=document.getElementById('opt-scope')?.value||'1500|10|NexStar 6SE';const sp=sv.split('|');const natF=parseFloat(sp[0]);const natFn=parseFloat(sp[1]);const scopeName=sp[2]||'Tube';const factor=parseFloat(document.getElementById('opt-corr')?.value||0.63);const camV=document.getElementById('opt-cam')?.value||'3.76|26.1|4.2|ASI2600MC Pro';const cp=camV.split('|');const pix=parseFloat(cp[0]);const sw=parseFloat(cp[1]);const sh=parseFloat(cp[2]||4.2);const camName=cp[3]||'Caméra';const eff=Math.round(natF*factor);const efn=(natFn*factor).toFixed(1);U('opt-focal',eff+'mm');U('opt-fnum','f/'+efn);U('opt-scale',(pix/eff*206.265).toFixed(2)+'"/px');U('opt-fov',(sw/eff*57.296).toFixed(2)+'°×'+(sh/eff*57.296).toFixed(2)+'°');U('opt-desc',scopeName+(factor!==1?' + ×'+factor:'')+' + '+camName);U('d-feff',eff+'mm f/'+efn);U('d-corr',factor===1?'Aucun':'Réducteur ×'+factor);
+  // Sauvegarder la sélection courante
+  try{localStorage.setItem('prom_scope', document.getElementById('opt-scope')?.value||'');
+  localStorage.setItem('prom_corr', document.getElementById('opt-corr')?.value||'');
+  localStorage.setItem('prom_cam', document.getElementById('opt-cam')?.value||'');}catch(e){}
+}
 
 // ══════════════════════════════════════════════
 // MÉTÉO
@@ -1508,6 +1514,12 @@ function pill(id,cls){const e=document.getElementById(id);if(e){e.className='pil
 // ══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
   buildPresets();buildTeqSteps();buildVolts();fCat();buildPlan();
+  // Restaurer les réglages sauvegardés
+  try{
+    const sc=localStorage.getItem('prom_scope');if(sc){const el=document.getElementById('opt-scope');if(el)el.value=sc;}
+    const co=localStorage.getItem('prom_corr');if(co){const el=document.getElementById('opt-corr');if(el)el.value=co;}
+    const ca=localStorage.getItem('prom_cam');if(ca){const el=document.getElementById('opt-cam');if(el)el.value=ca;}
+  }catch(e){}
   calcOpt();calcBF();calcPV();calcTeq();selMount();updPol();initCk();updPark();
   buildMeteoSlots(null);drawSky();drawC();drawCompass(347);
   buildDynFields();renderEquipList();buildEquipStats();
@@ -1522,14 +1534,19 @@ document.addEventListener('DOMContentLoaded',()=>{
     VOLTS.forEach(v=>{v.v=Math.max(v.w*.9,Math.min(v.mx,v.v+(Math.random()*.04-.02)));});
   },1800);
   // Détection réseau automatique après 1.5s (le temps que l'UI soit prête)
-  setTimeout(autoDetectNetwork,1500);
+  setTimeout(autoDetectNetwork,4000); // Délai augmenté — UI dispo immédiatement
   // Re-détection toutes les 2 minutes (basculement automatique Box ↔ Hotspot)
   setInterval(async()=>{const ok=await testInternet();const newMode=ok?'box':'asiair';if(newMode!==netMode){netMode=newMode;if(newMode==='asiair'){showOfflineBanner();updateNetUI('Réseau ASIAIR direct','192.168.1.1:'+ASIAIR_PORT,'asiair');}else{const banner=document.getElementById('meteo-offline-warn');if(banner)banner.style.display='none';fetchMeteo();if(detectedIP)updateNetUI('Box WiFi · ASIAIR',detectedIP+':'+ASIAIR_PORT,'box');}}},120000);
 });
 
 // ══ GESTIONNAIRE ÉQUIPEMENTS PERSONNALISÉS ══
 // © 2026 Morpheus
+// Chargement profil depuis localStorage (persiste entre sessions)
 let myEquip = JSON.parse(localStorage.getItem('prom_equip') || '[]');
+// Sauvegarder aussi les lieux GPS
+if(!localStorage.getItem('prom_lieux')){
+  localStorage.setItem('prom_lieux', JSON.stringify([{n:'Yutz — Jardin',la:49.36,lo:6.20}]));
+}
 let efEditId = null, eqFilterCat = 'all';
 
 const EQ_ICONS = {scope:'🔭',camera:'📷',apn:'📸',mount:'⚙️',guide:'🎯',corrector:'🔬',accessory:'🔧'};
