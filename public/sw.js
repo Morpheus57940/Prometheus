@@ -1,10 +1,11 @@
 const CACHE='prom-v64';
+const BASE='/Prometheus';
 const ASSETS=[
-  '/Prometheus/',
-  '/Prometheus/index.html',
-  '/Prometheus/manifest.json',
-  '/Prometheus/icons/icon-192.png',
-  '/Prometheus/icons/icon-512.png'
+  BASE+'/',
+  BASE+'/index.html',
+  BASE+'/manifest.json',
+  BASE+'/icons/icon-192.png',
+  BASE+'/icons/icon-512.png'
 ];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})));
@@ -24,7 +25,7 @@ self.addEventListener('fetch',e=>{
           caches.open(CACHE).then(cache=>cache.put(e.request,rc));
         }
         return r;
-      }).catch(()=>caches.match('/Prometheus/index.html'));
+      }).catch(()=>caches.match(BASE+'/index.html'));
     })
   );
 });
