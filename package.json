@@ -103,8 +103,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "morpheus-astro",
-      "repo": "prometheus"
+      "owner": "Morpheus57940",
+      "repo": "Prometheus"
     }
   }
 }
