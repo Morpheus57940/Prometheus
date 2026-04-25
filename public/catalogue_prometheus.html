@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test Catalogue</title>
+<style>
+body{font-family:system-ui;background:#07090f;color:#e8edf5;margin:0;padding:10px}
+h2{color:#e8912a;margin-bottom:10px}
+.r{padding:10px;border-bottom:1px solid #222;display:flex;gap:10px;align-items:center}
+.r:active{background:#131a24}
+.nm{font-weight:700;font-size:14px}
+.tp{font-size:11px;color:#6b7a94}
+.nb{font-size:11px;color:#e8912a}
+</style>
+</head>
+<body>
+<h2>Test: <span id="cnt">0</span> objets</h2>
+<div id="lst"></div>
+<script>
+var D=[["M31","Andromede","Galaxie Andromede","galaxie","3.4","180s","800","Facile","Automne","151","1h15","\ud83c\udf0c"],["M42","Orion","Nebuleuse Orion","nebuleuse","4.0","60s","400","Facile","Hiver","120","2h00","\ud83d\udd34"],["M45","Taureau","Les Pleiades","amas","1.6","30s","200","Facile","Hiver","130","1h05","\u2b50"],["M13","Hercule","Grand Amas Hercule","amas","5.8","30s","400","Facile","Printemps","140","1h10","\u2726"],["M57","Lyre","Nebuleuse Lyre","nebuleuse","8.8","60s","800","Moyen","Ete","125","2h05","\ud83d\udc9c"],["M51","Chiens de Chasse","Galaxie Tourbillon","galaxie","8.4","180s","800","Moyen","Printemps","135","1h40","\ud83c\udf0c"],["M81","Grande Ourse","Galaxie Bode","galaxie","6.9","180s","800","Facile","Printemps","145","1h27","\ud83c\udf0c"],["M27","Petit Renard","Nebuleuse Haltere","nebuleuse","7.5","60s","800","Facile","Ete","128","2h08","\ud83d\udc9c"],["Jupiter","Systeme Solaire","Planete","planete","-2.9","1/30s","400","Facile","Toutes","","","\ud83d\udfe0"],["Saturne","Systeme Solaire","Planete","planete","-0.4","1/15s","400","Facile","Toutes","","","\ud83e\ude90"]];
+document.getElementById('cnt').textContent = D.length;
+var h = '';
+for(var i=0; i<D.length; i++){
+  var r = D[i];
+  h += '<div class="r">';
+  h += '<span style="font-size:20px">' + r[11] + '</span>';
+  h += '<div><div class="nm">' + r[0] + '</div>';
+  h += '<div class="tp">' + r[2] + ' · ' + r[1] + '</div>';
+  h += '<div class="nb">' + r[5] + ' · ISO ' + r[6] + (r[9] ? ' · ' + r[9] + ' poses · ' + r[10] : '') + '</div></div></div>';
+}
+document.getElementById('lst').innerHTML = h;
+</script>
+</body>
+</html>
